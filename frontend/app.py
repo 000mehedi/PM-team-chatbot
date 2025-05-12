@@ -31,8 +31,36 @@ if option == "FAQs":
 
 elif option == "Definitions":
     st.subheader("EAM Terminology")
-    for _, row in definitions.iterrows():
-        st.write(f"**{row['Term']}**: {row['Definition']}")
+
+    search_term = st.text_input("Search terms or definitions:")
+
+    # Filter as user types
+    filtered_definitions = definitions[
+        definitions['Term'].str.contains(search_term, case=False, na=False) |
+        definitions['Definition'].str.contains(search_term, case=False, na=False)
+    ] if search_term else definitions
+
+    if filtered_definitions.empty:
+        st.info("No matching terms found.")
+    else:
+        # Group terms alphabetically into 4 tab buckets
+        tabs = st.tabs(["A–F", "G–L", "M–R", "S–Z"])
+
+        groups = {
+            "A–F": filtered_definitions[filtered_definitions["Term"].str[0].str.upper().between("A", "F")],
+            "G–L": filtered_definitions[filtered_definitions["Term"].str[0].str.upper().between("G", "L")],
+            "M–R": filtered_definitions[filtered_definitions["Term"].str[0].str.upper().between("M", "R")],
+            "S–Z": filtered_definitions[filtered_definitions["Term"].str[0].str.upper().between("S", "Z")]
+        }
+
+        for tab, label in zip(tabs, groups.keys()):
+            with tab:
+                if groups[label].empty:
+                    st.info("No definitions in this range.")
+                else:
+                    for _, row in groups[label].iterrows():
+                        st.write(f"**{row['Term']}**: {row['Definition']}")
+
 
 
 elif option == "Forms & Docs":

@@ -1,9 +1,11 @@
-Term,Definition,Category
-Sargassum,Free-floating brown seaweed found in tropical and subtropical oceans,Marine Life
-Water Quality,"Measurement of the chemical, physical, and biological characteristics of water",Environmental Science
-Biodiversity,The variety of plant and animal life in a particular habitat,Ecology
-Photosynthesis,The process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water,Biology
-Ecosystem,A community of interacting organisms and their physical environment,Ecology
-Marine Pollution,The introduction of harmful substances or products into the marine environment,Environmental Science
-Ocean Acidification,The decrease in pH of the Earth's oceans due to absorption of CO2 from the atmosphere,Environmental Science
-PM/CM Ratio, Preventive Maintenance, FM 
+Term,Definition
+Work Order,A document that provides details about maintenance or repair work.
+Preventive Maintenance,Maintenance carried out at regular intervals to prevent breakdowns.
+Asset,"An item of value owned by the organization, such as equipment or machinery."
+EAM,Enterprise Asset Management – a system to manage physical assets.
+CM,Corrective Maintenance performed after a fault is detected.
+PM,Planned Maintenance performed on a schedule to avoid breakdowns.
+Downtime,The period when a machine is not operational.
+Backlog,Work that is scheduled but not yet completed.
+Failure Mode,A specific way in which an asset can fail.
+Root Cause Analysis,The process of identifying the underlying cause of a failure.
