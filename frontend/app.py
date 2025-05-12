@@ -27,19 +27,19 @@ if option == "FAQs":
     for _, row in faqs.iterrows():
         with st.expander(row['Question']):
             st.write(row['Answer'])
-            st.button("Was this helpful?", key=f"faq_{row['Question']}")
+    
 
 elif option == "Definitions":
     st.subheader("EAM Terminology")
     for _, row in definitions.iterrows():
         st.write(f"**{row['Term']}**: {row['Definition']}")
-        st.button("Was this helpful?", key=f"definition_{row['Term']}")
+
 
 elif option == "Forms & Docs":
     st.subheader("Reference Links")
     for _, row in links.iterrows():
         st.markdown(f"- [{row['Resource']}]({row['Link']})")
-        st.button("Was this helpful?", key=f"link_{row['Resource']}")
+
 
 elif option == "Ask a Question":
     st.subheader("Ask a Question")
@@ -68,4 +68,4 @@ elif option == "Ask a Question":
                     st.success(answer)
                 except Exception as e:
                     st.error(f"AI error: {str(e)}")
-        st.button("Was this helpful?", key=f"question_{question}")
+        
