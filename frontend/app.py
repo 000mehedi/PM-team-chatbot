@@ -47,12 +47,12 @@ elif option == "Ask a Question":
 
     question = st.text_input("Type your question:")
     if question:
-        st.write(f"Question entered: {question}")  # Debugging line
+   
 
         if mode == "Rule-based":
-            st.write("Triggering Rule-based mode...")  # Debugging line
+ 
             answer = search_content(question, faqs, definitions)
-            st.write(f"Answer from rule-based search: {answer}")  # Debugging line
+       
             if answer:
                 st.success(answer)
             else:
@@ -60,7 +60,7 @@ elif option == "Ask a Question":
                 log_unanswered(question)
 
         elif mode == "AI-powered":
-            st.write("Triggering AI-powered mode...")  # Debugging line
+     
             context_data = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(faqs['Question'], faqs['Answer']))
             with st.spinner("Asking GPT..."):
                 try:
