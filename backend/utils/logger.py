@@ -2,7 +2,8 @@ import os
 import pandas as pd
 import datetime
 
-LOG_FILE = "unanswered_log.csv"
+LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "unanswered_log.csv")
+LOG_FILE = os.path.abspath(LOG_FILE)
 
 def log_unanswered(question):
     log_entry = {
@@ -13,7 +14,8 @@ def log_unanswered(question):
     # If file exists and is non-empty, read and append
     if os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0:
         df = pd.read_csv(LOG_FILE)
-        df = df.append(log_entry, ignore_index=True)
+        df = pd.concat([df, pd.DataFrame([log_entry])], ignore_index=True)
+
     else:
         # Create a new DataFrame
         df = pd.DataFrame([log_entry])

@@ -62,7 +62,6 @@ elif option == "Ask a Question":
         elif mode == "AI-powered":
             st.write("Triggering AI-powered mode...")  # Debugging line
             context_data = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(faqs['Question'], faqs['Answer']))
-            st.write(f"Context data: {context_data[:500]}")  # Show a snippet of the context
             with st.spinner("Asking GPT..."):
                 try:
                     answer = ask_gpt(question, context=context_data)

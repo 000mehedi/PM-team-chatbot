@@ -1,7 +1,7 @@
 import openai
 import os
 from dotenv import load_dotenv
-from backend.utils.logger import log_error
+from backend.utils.logger import log_unanswered
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -28,7 +28,7 @@ def ask_gpt(question, context=""):
             print(response)  # Debugging line to print the raw response
             return response.choices[0].message.content.strip()
         except openai.APIConnectionError as e:
-            log_error(str(e), context)
+            log_unanswered(str(e), context)
             time.sleep(5)  # Wait for 5 seconds before retrying
             continue
     return "Connection error. Please try again later."
