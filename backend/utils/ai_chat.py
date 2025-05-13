@@ -1,5 +1,6 @@
 import openai
 import os
+import time  # ✅ Import time module
 from dotenv import load_dotenv
 from backend.utils.logger import log_unanswered
 
@@ -25,10 +26,11 @@ def ask_gpt(question, context=""):
                 temperature=0.3,
                 max_tokens=300
             )
-            print(response)  # Debugging line to print the raw response
+            print(response)  # Optional: debug
             return response.choices[0].message.content.strip()
         except openai.APIConnectionError as e:
-            log_unanswered(str(e), context)
-            time.sleep(5)  # Wait for 5 seconds before retrying
+            log_unanswered(question)  # ✅ Only pass one argument
+            time.sleep(5)
             continue
+
     return "Connection error. Please try again later."

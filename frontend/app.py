@@ -88,12 +88,12 @@ elif option == "Ask a Question":
                 log_unanswered(question)
 
         elif mode == "AI-powered":
-     
             context_data = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(faqs['Question'], faqs['Answer']))
+
             with st.spinner("Asking GPT..."):
                 try:
                     answer = ask_gpt(question, context=context_data)
                     st.success(answer)
                 except Exception as e:
                     st.error(f"AI error: {str(e)}")
-        
+                    log_unanswered(question)  # ✅ DO NOT pass 'e' or anything else

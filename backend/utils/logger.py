@@ -5,10 +5,11 @@ import datetime
 LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "unanswered_log.csv")
 LOG_FILE = os.path.abspath(LOG_FILE)
 
-def log_unanswered(question):
-    log_entry = {
+def log_unanswered(question, error = None):
+    log_entry =  {
         "Timestamp": datetime.datetime.now().isoformat(),
-        "Question": question
+        "Question": question,
+        "Error": error if error else ""
     }
 
     # If file exists and is non-empty, read and append
