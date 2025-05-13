@@ -26,11 +26,15 @@ def ask_gpt(question, context=""):
                 temperature=0.3,
                 max_tokens=300
             )
-            print(response)  # Optional: debug
+            print(response)  # Debugging line to print the raw response
             return response.choices[0].message.content.strip()
         except openai.APIConnectionError as e:
-            log_unanswered(question)  # ✅ Only pass one argument
-            time.sleep(5)
+            print("API Connection Error: ", e)  # Show detailed error
+            log_unanswered(question)
+            time.sleep(5)  # Optional: wait before retrying
             continue
-
+        except Exception as e:
+            print("Other Error: ", e)  # Handle all other errors
+            log_unanswered(question)
+            return f"Error: {str(e)}"
     return "Connection error. Please try again later."

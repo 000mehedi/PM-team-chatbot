@@ -71,29 +71,22 @@ elif option == "Forms & Docs":
 
 elif option == "Ask a Question":
     st.subheader("Ask a Question")
-    mode = st.radio("Choose response mode", ["Rule-based", "AI-powered"])
-
     question = st.text_input("Type your question:")
+
     if question:
-   
+        # Try Rule-based first
+        answer = search_content(question, faqs, definitions)
 
-        if mode == "Rule-based":
- 
-            answer = search_content(question, faqs, definitions)
-       
-            if answer:
-                st.success(answer)
-            else:
-                st.warning("I don’t know that yet. Logging for review.")
-                log_unanswered(question)
-
-        elif mode == "AI-powered":
+        if answer:
+            st.success(f"**Rule-based Answer:** {answer}")
+        else:
+            st.info("No match found in rules. Asking AI...")
             context_data = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(faqs['Question'], faqs['Answer']))
-
+            
             with st.spinner("Asking GPT..."):
                 try:
-                    answer = ask_gpt(question, context=context_data)
-                    st.success(answer)
+                    ai_answer = ask_gpt(question, context=context_data)
+                    st.success(f"**AI Answer:** {ai_answer}")
                 except Exception as e:
                     st.error(f"AI error: {str(e)}")
-                    log_unanswered(question)  # ✅ DO NOT pass 'e' or anything else
+                    log_unanswered(question)
