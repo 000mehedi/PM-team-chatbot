@@ -1,26 +1,32 @@
-# backend/utils/content_loader.py
+
+# 📁 backend/utils/content_loader.py
 import pandas as pd
 import os
-from difflib import get_close_matches
-
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
+from .knowledge_base import search_learned_qa
 
 def load_faqs():
-    return pd.read_csv(os.path.join(DATA_PATH, 'faqs.csv'))
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "faqs.csv")
+    return pd.read_csv(os.path.abspath(data_path))
+
 
 def load_definitions():
-    return pd.read_csv(os.path.join(DATA_PATH, 'definitions.csv'))
+    data_path = os.path.join(os.path.dirname(__file__), '..', "data", "definitions.csv")
+    return pd.read_csv(os.path.abspath(data_path))
 
 def load_links():
-    return pd.read_csv(os.path.join(DATA_PATH, 'links.csv'))
+    data_path = os.path.join(os.path.dirname(__file__), '..', "data", "links.csv")
+    return pd.read_csv(os.path.abspath(data_path))
+
+
 
 def search_content(query, faqs, definitions):
-    q_matches = get_close_matches(query.lower(), faqs['Question'].str.lower(), n=1, cutoff=0.6)
-    if q_matches:
-        return faqs[faqs['Question'].str.lower() == q_matches[0]]['Answer'].values[0]
-
-    t_matches = get_close_matches(query.lower(), definitions['Term'].str.lower(), n=1, cutoff=0.6)
-    if t_matches:
-        return definitions[definitions['Term'].str.lower() == t_matches[0]]['Definition'].values[0]
-
+    for _, row in faqs.iterrows():
+        if query.lower() in row['Question'].lower():
+            return row['Answer']
+    for _, row in definitions.iterrows():
+        if query.lower() in row['Term'].lower() or query.lower() in row['Definition'].lower():
+            return f"{row['Term']}: {row['Definition']}"
+    learned_answer = search_learned_qa(query)
+    if learned_answer:
+        return learned_answer
     return None
