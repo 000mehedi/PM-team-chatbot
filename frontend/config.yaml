@@ -1,0 +1,20 @@
+credentials:
+  usernames:
+    alice:
+      email: alice@calgary.ca
+      name: Alice Smith
+      password: 'pbkdf2:sha256:260000$examplehashedpassword1'
+    bob:
+      email: bob@calgary.ca
+      name: Bob Jones
+      password: 'pbkdf2:sha256:260000$examplehashedpassword2'
+
+cookie:
+  name: chatbot_auth
+  key: some_random_secure_key
+  expiry_days: 7
+
+preauthorized:
+  emails:
+    - alice@calgary.ca
+    - bob@calgary.ca

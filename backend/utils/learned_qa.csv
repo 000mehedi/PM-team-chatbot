@@ -1223,3 +1223,707 @@ plt.show()
 
 This code snippet provides a basic analysis of failures based on the 'Equipment' feature. You can further customize the analysis based on your specific requirements and the structure of the dataset. Feel free to provide more details or ask for additional analysis based on other criteria if needed.",AI
 Can you do failure analysis?,"Certainly! Failure analysis typically involves examining data related to failures to identify patterns, trends, or potential causes. Could you please provide me with a dataset or specific scenario for the failure analysis? This will help me demonstrate the process to you effectively.",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Show be frequency of work order by Region,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is the column in the DataFrame that represents the region
+# Let's assume the column name is 'Region'
+
+# Group data by 'Region' and count the frequency of work orders in each region
+work_order_freq_by_region = df['Region'].value_counts()
+
+# Plot the frequency of work orders by region
+plt.figure(figsize=(12, 6))
+work_order_freq_by_region.plot(kind='bar', color='skyblue')
+plt.title('Frequency of Work Orders by Region')
+plt.xlabel('Region')
+plt.ylabel('Frequency')
+plt.xticks(rotation=45)
+plt.grid(axis='y', linestyle='--', linewidth=0.5)
+plt.show()
+```",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Make a pie chart for WO Type,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' is the DataFrame containing the data
+# Assuming the column containing the Work Order Type is 'WO Type'
+
+plt.figure(figsize=(8, 8))
+df['WO Type'].value_counts().plot(kind='pie', autopct='%1.1f%%', startangle=90, colors=['skyblue', 'orange', 'lightgreen', 'pink'])
+plt.title('Distribution of Work Order Types')
+plt.ylabel('')
+plt.show()
+```",AI
+"Make a pie chart for Region, mention the file name in Title","```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Pie Chart for Region')
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.show()
+```",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Distribution of Region')
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+plt.show()
+```",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Distribution of Regions')
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.show()
+```",AI
+can you give me a summary of this data?,"```python
+# Display a summary of the data
+summary = df.describe()
+summary
+```",AI
+can you give me a summary of this data?,"```python
+# Summary of the data
+data_summary = df.describe()
+data_summary
+```",AI
+can you give me a summary of this data?,"To provide a summary of the data in the 'df' DataFrame, we will generate descriptive statistics for the numerical columns as well as some basic information about the DataFrame itself.
+
+```python
+# Display basic information about the DataFrame
+print(df.info())
+
+# Display descriptive statistics for numerical columns
+print(df.describe())
+``` 
+
+This code will show the column names, data types, and non-null counts for each column in the DataFrame. It will also provide summary statistics like count, mean, standard deviation, minimum, maximum, and quartiles for numerical columns.",AI
+can you give me a summary of this data?,"```python
+summary = df.describe()
+summary
+```",AI
+Make a pie chart for Region,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the dataframe 'df'
+# Make sure to replace 'Region' with the actual column name in your dataset
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Make a bar chart of Building Name,"```python
+import matplotlib.pyplot as plt
+
+# Assuming the 'Building Name' column is in the DataFrame 'df'
+plt.figure(figsize=(12,6))
+df['Building Name'].value_counts().plot(kind='bar', color='skyblue')
+plt.title('Count of Buildings')
+plt.xlabel('Building Name')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+```",AI
+"Make a bar-chart of Building Name, but top 10","To create a bar chart of the top 10 Building Names from the dataset, we first need to load the data into a DataFrame and then plot the bar chart. Here's the code to accomplish this using Python with pandas and matplotlib:
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming the dataset is loaded into a variable called 'df'
+
+# Grouping the data by Building Name and counting occurrences
+building_counts = df['Building Name'].value_counts()
+
+# Getting the top 10 Building Names
+top_10_buildings = building_counts.head(10)
+
+# Creating the bar chart
+plt.figure(figsize=(12, 6))
+top_10_buildings.plot(kind='bar', color='skyblue')
+plt.title('Top 10 Building Names')
+plt.xlabel('Building Names')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+```
+
+This code will plot a bar chart showing the top 10 Building Names based on the count of occurrences in the dataset.",AI
+"Make a bar-chart of Building Name, but top 20","```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Building Name' is the column in the DataFrame 'df' you want to plot
+top_20_buildings = df['Building Name'].value_counts().head(20)
+
+plt.figure(figsize=(12, 6))
+top_20_buildings.plot(kind='bar')
+plt.title('Top 20 Buildings')
+plt.xlabel('Building Name')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+```",AI
+Can you give me a summary of Building Name,"To provide a summary of the Building Name from the dataset, we can start by displaying the unique values, count of each unique value, and some basic statistics. Here's the Python code to achieve this:
+
+```python
+# Display unique values of Building Name
+building_names = df['Building Name'].unique()
+print(""Unique Building Names:"")
+print(building_names)
+
+# Count of each unique Building Name
+building_name_count = df['Building Name'].value_counts()
+print(""\nCount of each Building Name:"")
+print(building_name_count)
+
+# Basic statistics for Building Name
+building_name_stats = df['Building Name'].describe()
+print(""\nBasic statistics for Building Name:"")
+print(building_name_stats)
+```
+
+This code will provide you with a summary of the Building Name column in the dataset, including unique values, count of each unique value, and basic statistics like count, unique count, top value, and frequency. Feel free to run this code on your dataset to get the summary of Building Name.",AI
+Show some graphs,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Assuming 'df' is the loaded dataset
+
+# Scatter plot
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='column1', y='column2', data=df)
+plt.title('Scatter Plot of Column1 vs. Column2')
+plt.xlabel('Column1')
+plt.ylabel('Column2')
+plt.show()
+
+# Histogram
+plt.figure(figsize=(10, 6))
+sns.histplot(df['column3'], bins=10)
+plt.title('Histogram of Column3')
+plt.xlabel('Column3')
+plt.ylabel('Frequency')
+plt.show()
+
+# Boxplot
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='category_column', y='numeric_column', data=df)
+plt.title('Boxplot of Numeric Column Grouped by Category Column')
+plt.xlabel('Category Column')
+plt.ylabel('Numeric Column')
+plt.show()
+```",AI
+Make a scatter plot from this data,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'df' is the loaded dataset
+# Let's say we want to create a scatter plot between columns 'column1' and 'column2'
+
+plt.figure(figsize=(8, 6))
+plt.scatter(df['column1'], df['column2'])
+plt.xlabel('Column 1')
+plt.ylabel('Column 2')
+plt.title('Scatter Plot of Column 1 vs Column 2')
+plt.show()
+```",AI
+Make a scatter plot between Region and Status,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' and 'Status' are columns in the DataFrame 'df'
+plt.figure(figsize=(10, 6))
+plt.scatter(df['Region'], df['Status'])
+plt.xlabel('Region')
+plt.ylabel('Status')
+plt.title('Scatter Plot of Region vs Status')
+plt.show()
+```",AI
+"Make a bar chart for Last Updated By, but top 10","```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Last Updated By' is a column in the DataFrame df
+top_10_last_updated = df['Last Updated By'].value_counts().nlargest(10)
+
+plt.figure(figsize=(12, 6))
+top_10_last_updated.plot(kind='bar')
+plt.title('Top 10 Last Updated By')
+plt.xlabel('Last Updated By')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+```",AI
+Where are the training videos,"Jennifer, to locate the training videos, you can access them by clicking on the following [link](https://calgarycity.sharepoint.com/:f:/r/sites/PMTeam-CG/Shared%20Documents/Team%20Launchpad%20%F0%9F%9A%80/Training%20Video?csf=1&web=1&e=C2I3AU).
+
+If you have any specific questions or need further assistance with data analysis or visualizations, feel free to ask!",AI
+Make a pie chart of Region,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+"Make a bar-chart of Building Name, but top 20","```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Building Name' is the column containing building names in the DataFrame 'df'
+top_buildings = df['Building Name'].value_counts().nlargest(20)
+
+plt.figure(figsize=(12, 6))
+top_buildings.plot(kind='bar')
+plt.xlabel('Building Name')
+plt.ylabel('Count')
+plt.title('Top 20 Buildings')
+plt.show()
+```",AI
+Show be frequency of work order by region,"To show the frequency of work orders by region using the dataset loaded in the variable 'df', we will first need to group the data by region and then count the number of work orders in each region.
+
+Here is the Python code to achieve this:
+
+```python
+import pandas as pd
+
+# Assuming that the 'Region' column contains the region information in the DataFrame 'df'
+work_orders_by_region = df['Region'].value_counts()
+
+# Display the frequency of work orders by region
+print(work_orders_by_region)
+```
+
+This code will count the number of work orders in each region and display the result. You can further visualize this data using popular plotting libraries like matplotlib or seaborn if needed.",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' column is present in the DataFrame 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' contains the dataset with a column named 'Region'
+
+# Count the occurrences of each region
+region_counts = df['Region'].value_counts()
+
+# Create a pie chart
+plt.figure(figsize=(8,8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Make the pie chart smaller,"To make the pie chart smaller, you can adjust the figure size when creating the plot using matplotlib. Here's an example code snippet to create a smaller pie chart using matplotlib and pandas:
+
+```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' contains the data for the pie chart
+# Here, 'column_name' represents the column you want to visualize
+
+# Calculate the values for the pie chart
+data = df['column_name'].value_counts()
+
+# Create a smaller pie chart
+plt.figure(figsize=(8, 8))  # Adjust the size as needed
+plt.pie(data, labels=data.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+
+plt.show()
+``` 
+
+In this code snippet, you can modify the `figsize` parameter inside `plt.figure()` function to adjust the size of the pie chart as needed. Feel free to change the dimensions to make the pie chart smaller or larger based on your preference.",AI
+"Make a pie-chart for Building Name, but make the pie smaller maybe 6","```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Building Name' is a column in the DataFrame df
+building_counts = df['Building Name'].value_counts().head(6)
+labels = building_counts.index
+sizes = building_counts.values
+
+plt.figure(figsize=(8, 8))
+plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.show()
+```",AI
+sUMMARIZE,"To summarize a dataset in Python using pandas, you can use the `describe()` function. This function provides descriptive statistics for each column of the DataFrame such as count, mean, standard deviation, minimum, maximum, and quartiles. Here is the code to summarize the 'df' dataset:
+
+```python
+import pandas as pd
+
+# Assuming the dataset is already loaded into a variable called 'df'
+description = df.describe()
+print(description)
+``` 
+
+Running this code will provide a summary of the dataset, giving you an overview of the numerical values in the DataFrame.",AI
+Make a pie chart for Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' contains a column named 'Region'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title(""Distribution of Regions"")
+plt.show()
+```",AI
+Make a pie chart for Status,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' contains a column named 'Status' for the statuses of the data
+status_counts = df['Status'].value_counts()
+
+plt.figure(figsize=(8, 6))
+plt.pie(status_counts, labels=status_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title('Distribution of Statuses')
+plt.show()
+```",AI
+Can you generate relevant url/ manual,"To generate a relevant URL or manual based on the dataset, we first need to understand the content of the dataset. We can start by displaying the first few rows of the dataset to see the columns and sample data it contains. Let's take a look at the dataset:
+
+```python
+# Display the first few rows of the dataset
+df.head()
+```
+
+This code will show us the first few rows of the dataset, which will help us identify the relevant columns that we can use to generate a URL or manual based on the data. Let me know if you need further assistance or have any specific requirements related to the dataset for generating the URL or manual.",AI
+I want manuals for the equipments,"Sure! To find manuals for the equipment, we can start by examining the dataset to see if it contains any information related to equipment manuals.
+
+Let's take a look at the first few rows of the dataset 'df' to understand its structure:
+
+```python
+import pandas as pd
+
+# Assuming 'df' contains the dataset
+# Display the first few rows of the DataFrame
+print(df.head())
+```
+
+After understanding the dataset structure, we can identify columns that might contain information about equipment manuals. If there is a specific column that contains the manual information, we can filter the DataFrame accordingly.
+
+If you provide more details about the dataset structure and where the manual information is stored, I can help you extract the manual information.",AI
+Take the Manufacturer and serial number and come up with a manual,"To generate a manual based on the manufacturer and serial number in the dataset 'df', we can create a table that contains the manufacturer and serial number information. We can then export this table to a CSV file which can be used as a manual.
+
+Here is the code to achieve this:
+
+```python
+import pandas as pd
+
+# Sample DataFrame 'df' with Manufacturer and Serial Number columns
+data = {'Manufacturer': ['Apple', 'Samsung', 'Microsoft'],
+        'Serial Number': [12345, 67890, 54321]}
+
+df = pd.DataFrame(data)
+
+# Display the DataFrame with Manufacturer and Serial Number
+print(df)
+
+# Export the DataFrame 'df' to CSV file
+df.to_csv('manual.csv', index=False)
+```
+
+This code will create a manual.csv file containing the Manufacturer and Serial Number information that can be used for creating a manual. You can customize the 'df' DataFrame with your actual data before running the code.",AI
+Can you  do failure analysis,"Sure, I can help you with failure analysis. Could you please provide me with the dataset or the specific type of analysis you would like me to perform for failure analysis?",AI
+"Check this dataset, see serial_number, Manufacturer and Model. I want the user manuals for this","To find the user manuals for the items in the dataset based on the 'serial_number', 'Manufacturer', and 'Model' columns, we can create a new column that concatenates these three columns and then provide a link to a common resource where the user manuals can be accessed.
+
+Here's some sample code to accomplish this using the DataFrame 'df':
+
+```python
+# Concatenate 'serial_number', 'Manufacturer', and 'Model' columns to create a new column 'product_info'
+df['product_info'] = df['serial_number'] + '_' + df['Manufacturer'] + '_' + df['Model']
+
+# Generate a link to a common resource for user manuals
+common_manuals_link = ""https://example.com/user_manuals/""
+
+# Create a new column 'user_manual_link' in the DataFrame with the link to the user manuals
+df['user_manual_link'] = common_manuals_link + df['product_info'].str.replace(' ', '%20')
+
+# Display the DataFrame with user manual links
+print(df[['serial_number', 'Manufacturer', 'Model', 'user_manual_link']])
+```
+
+In this code snippet:
+1. We concatenated the columns 'serial_number', 'Manufacturer', and 'Model' to create a new column 'product_info'.
+2. We created a common link to a resource where the user manuals can be accessed ('https://example.com/user_manuals/').
+3. We created a new column 'user_manual_link' that contains the link to the user manuals based on the concatenated 'product_info'.
+4. Finally, we displayed the relevant columns along with the user manual links.
+
+Please replace 'https://example.com/user_manuals/' with the actual link where the user manuals are available.",AI
+"Check this dataset, see serial_number, manufacturer and model_number. I want the user manuals for this","To find the serial number, manufacturer, and model number in the dataset and provide the user manuals for this information, we can first display the relevant columns and then potentially link to the user manuals based on this data.
+
+Here's how you can display the serial number, manufacturer, and model number columns from the dataset 'df' and potentially provide links to user manuals:
+
+```python
+# Display the relevant columns - serial_number, manufacturer, and model_number
+relevant_cols = ['serial_number', 'manufacturer', 'model_number']
+relevant_data = df[relevant_cols]
+
+print(relevant_data)
+
+# Since I don't have access to the dataset, the above code will display the desired columns. 
+# If you have links to the user manuals in the dataset, you can extend this code to generate the links based on the values in these columns.
+```
+
+If you have additional information on how the user manuals are linked to the data in the dataset (e.g., file paths, URLs, etc.), please provide more context so I can help you generate the links to the user manuals based on the data in these columns.",AI
+YEah now give me user manuals for this machines,"Unfortunately, I cannot provide direct access to user manuals for machines. However, I can help you analyze data or create visualizations related to the machines if you have a dataset. Feel free to provide more information or ask any specific data-related questions that you may have!",AI
+Make a bar chart of Region,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'df' is the loaded dataset
+# Let's create a bar chart of the 'Region' column
+
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(10, 6))
+region_counts.plot(kind='bar', color='skyblue')
+plt.title('Distribution of Jobs by Region')
+plt.xlabel('Region')
+plt.ylabel('Number of Jobs')
+plt.xticks(rotation=45)
+plt.show()
+```",AI
+Make a pie chart of Region,"```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the DataFrame 'df'
+
+# Count the number of occurrences of each region
+region_counts = df['Region'].value_counts()
+
+# Plotting a pie chart
+plt.figure(figsize=(8, 6))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+plt.title('Distribution of Regions')
+plt.show()
+```",AI
+Building with the highest work order,"To find the building with the highest work order count, we can analyze the dataset by grouping by the building and then counting the number of work orders for each building. We can then identify the building with the highest work order count.
+
+Here's the Python code to achieve this using a sample dataset:
+
+```python
+import pandas as pd
+
+# Sample dataset (replace this with your actual dataset)
+data = {
+    'Building': ['A', 'B', 'A', 'C', 'B', 'A', 'C', 'C'],
+    'Work_Order': [101, 102, 103, 104, 105, 106, 107, 108]
+}
+
+df = pd.DataFrame(data)
+
+# Group by 'Building' and count the number of work orders for each building
+building_work_order_counts = df['Building'].value_counts()
+
+# Find the building with the highest work order count
+building_with_highest_count = building_work_order_counts.idxmax()
+highest_work_order_count = building_work_order_counts.max()
+
+building_with_highest_count, highest_work_order_count
+```
+
+This code will output the building with the highest work order count along with the count itself. Replace the sample dataset with your actual dataset loaded into the 'df' variable for accurate results.",AI
+can you give me a summary of this data?,"To provide a summary of the data in the DataFrame 'df', we can use the `describe()` method which gives statistical information such as count, mean, standard deviation, minimum, maximum, etc. 
+
+Here's a code snippet to generate a summary of the data:
+
+```python
+# This assumes that 'df' is the variable name for your loaded DataFrame
+summary = df.describe()
+summary
+``` 
+
+This code will display the summary statistics of the dataset stored in the variable 'df'.",AI
+"Make a bar chart of Building Name, but top 20","To create a bar chart showing the top 20 Building Names based on their frequency in the dataset, we can use Python with pandas and matplotlib. Here's the code to generate the bar chart:
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Building Name' is the column name in your dataset
+top_buildings = df['Building Name'].value_counts().head(20)
+
+plt.figure(figsize=(12, 6))
+top_buildings.plot(kind='bar', color='skyblue')
+plt.xlabel('Building Name')
+plt.ylabel('Frequency')
+plt.title('Top 20 Building Names')
+plt.xticks(rotation=45)
+plt.show()
+``` 
+
+This code will generate a bar chart showing the top 20 Building Names along with their frequencies in the DataFrame 'df'. Each bar represents a building, and the height of the bar indicates the frequency of that building in the dataset.",AI
+make it top 9,"To display the top 9 rows of the dataset, you can use the `head()` function in pandas. Here is how you can do it in Python:
+
+```python
+# Display the top 9 rows of the dataset
+top_9_rows = df.head(9)
+top_9_rows
+```",AI
+Make a pie chart of Status,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'df' is the DataFrame containing the dataset
+status_counts = df['Status'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(status_counts, labels=status_counts.index, autopct='%1.1f%%', startangle=140)
+plt.title('Distribution of Status')
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.show()
+```",AI
+difference between pm and cm,"The key difference between Preventive Maintenance (PM) and Corrective Maintenance (CM) lies in their approaches to maintenance activities. PM routines focus on scheduled tasks designed to prevent equipment failures and prolong asset life. On the other hand, CM activities occur in response to identified issues or equipment failures to restore functionality.
+
+Would you like to see some sample data showcasing PM and CM activities for further clarification?",AI
+Name some flower,"Sure! Here are the names of some common flowers:
+
+1. Rose
+2. Sunflower
+3. Tulip
+4. Daisy
+5. Orchid
+
+If you need any further information or assistance with data analysis or visualizations, feel free to ask!",AI
+Hello II,Hello! How can I assist you with data analysis or visualizations today? Feel free to ask any questions you have.,AI
+Hello,Hello! How can I assist you with data analysis or visualizations today?,AI
+"Make a bar chart of Last Updated by, but only top 10 entries.","To create a bar chart of the top 10 entries of ""Last Updated by"" in the DataFrame 'df', you can use the following Python code:
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming 'Last Updated by' is a column in the DataFrame 'df'
+
+# Count the occurrences of each 'Last Updated by' and select the top 10
+top_last_updated_by = df['Last Updated by'].value_counts().head(10)
+
+# Create a bar chart
+plt.figure(figsize=(12, 6))
+top_last_updated_by.plot(kind='bar', color='skyblue')
+plt.title('Top 10 Last Updated by')
+plt.xlabel('Last Updated by')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+``` 
+
+This code will generate a bar chart showing the top 10 entries of ""Last Updated by"" along with their corresponding counts.",AI
+hello,Hello! How can I assist you today with data analysis or visualizations? Just let me know your question or what you need help with.,AI
+how are you,I'm here and ready to assist you with any data analysis or visualization tasks you have! How can I help you today?,AI
+I dont need help ig,"I'm here whenever you need assistance! If you have any data-related questions or need help with data analysis or visualization, feel free to ask.",AI
+Hih elo sad,It seems like there might be a typing error in your question. Could you please provide more context or clarify your question so that I can assist you better with data analysis or visualizations using the 'df' DataFrame?,AI
+HI fhjsdifh'afafd,"It seems like the user input is not a valid question related to data analysis or visualization. If you have any other questions related to data analysis or visualizations, feel free to ask!",AI
+Make a pie chart of Region,"```python
+import matplotlib.pyplot as plt
+
+# Assuming 'Region' is a column in the dataframe 'df'
+region_counts = df['Region'].value_counts()
+
+plt.figure(figsize=(8, 8))
+plt.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=140)
+plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+plt.title('Distribution of Region')
+plt.show()
+```",AI
+Hi I want you to write a poem for me,"I'm here to help with data tasks and analysis,
+Poetry's not my forte, but here's the gist:
+In pandas and plots, I excel so fine,
+Let's analyze data, your insights will shine!",AI
+Hi how are you I am admin,Hello! I'm here to help you with any data analysis or visualization questions you have. How can I assist you today?,AI
+mehedi,How can I assist you with data analysis today?,AI
+Hi there,Hello! How can I assist you today with data analysis or visualizations?,AI
+Hi sir,Hello! How can I assist you today with data analysis or visualizations?,AI
+HI can you write a poem for me.,"I'm here to assist with data-related queries. If you have any questions or need help with data analysis or visualizations, feel free to ask!",AI
+fkn write a poem man,"```python
+print(""Poem by Assistant:"")
+print()
+print(""In streams of data, I swiftly glide,"")
+print(""Assisting you, with data by your side."")
+print(""With Python's power and libraries grand,"")
+print(""Insights we uncover, hand in hand."")
+
+print()
+
+print(""Visualizations bloom like flowers fair,"")
+print(""Insights and patterns we easily share."")
+print(""Analysis deep, we dive in the code,"")
+print(""Together we walk, on data's road."")
+
+print()
+
+print(""So fear not, dear user, data I'll decode,"")
+print(""In this journey of insight, I'll be your abode."")
+print(""Through queries and charts, we'll creatively blend,"")
+print(""In the world of data, together we'll transcend."")
+```",AI
+"write it here, not in console","Sure, please go ahead and ask your question related to data analysis or visualizations!",AI
+Session 4,I'm here to help with data analysis. Could you please provide more details or a specific question related to Session 4 that you would like me to assist with?,AI
+Session 2,I can help you with that! What specifically would you like to know or do related to Session 2?,AI

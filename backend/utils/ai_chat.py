@@ -1,13 +1,12 @@
-# 📁 backend/utils/ai_chat.py
 import openai
 import os
 
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def ask_gpt(question, context=""):
     prompt = (
         "You are a Streamlit data assistant. "
-        "Jennifer is our boss. "
+        
         "When asked questions involving data analysis or visualizations, "
         "use Python (with pandas, matplotlib, or seaborn). "
         "Always return code inside a Python code block using triple backticks like this: ```python ... ```.\n\n"
