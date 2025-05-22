@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Local env files
+.env
+.env.*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# VS Code / IDE config
+.vscode/
+.idea/
+
+# Python dependency files (lock files can be optional)
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Cache / logs
+*.log
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Streamlit cache
+.streamlit/
+
+# Render build artifacts
+render.yaml.template
+
+# SQLite DB (if used locally before Supabase)
+*.db
+*.sqlite3
+
+# Supabase hidden files (if used locally)
+.supabase/
