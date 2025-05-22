@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 
 from backend.utils.db import (
-    create_tables, add_user, get_user_by_username,
+    add_user, get_user_by_username,
     get_all_sessions, get_messages_for_session, add_message_to_session,
     user_owns_session, create_new_session  # ✅ Use correct function name
 )
@@ -53,11 +53,6 @@ class MessageOut(BaseModel):
     content: str
     timestamp: str
 
-# ======================= App Lifecycle =======================
-
-@app.on_event("startup")
-def startup_event():
-    create_tables()
 
 # ======================= Auth =======================
 

@@ -14,7 +14,6 @@ def inject_styles():
         box-shadow: 2px 2px 5px rgba(0,0,0,0.15);
     }
                 
-
     .bot-msg {
         background-color: #7b8ca3;
         color: white;
@@ -25,6 +24,19 @@ def inject_styles():
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
-    /* Add other styles here */
+
+    /* Sidebar option-menu tabs - active tab style */
+    .nav-link.active {
+        background-color: #dbe9ff !important;  /* light pastel blue */
+        color: #000000 !important;  /* black text */
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        box-shadow: none !important;
+    }
+    /* Hover effect for tabs */
+    .nav-link:hover {
+        background-color: #e6f0ff !important;
+        color: #000000 !important;
+    }
     </style>
     """, unsafe_allow_html=True)

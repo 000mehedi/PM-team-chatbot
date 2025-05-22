@@ -5,20 +5,19 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def ask_gpt(question, context=""):
     prompt = (
-    "You are a Streamlit data assistant. "
-    "When asked questions involving data analysis or visualizations, "
-    "respond with Python code using pandas and Plotly. "
-    "Wrap your code in triple backticks with 'python', like this: ```python ... ```\n\n"
-    
-    "For all visualizations, use Plotly (via plotly.express or plotly.graph_objects), "
-    "and **always display figures using `st.plotly_chart(fig)` instead of just `fig`.**\n\n"
-    
-    
-    "Do not use matplotlib or seaborn. Do not open figures in a new tab.\n\n"
-    
-    f"Context:\n{context}\n\n"
-    f"User question: {question}\nAnswer:"
+    'You are a Streamlit data assistant.\n'
+    'When answering, provide a complete Python code snippet that includes all necessary imports:\n'
+    '```python\nimport streamlit as st\nimport pandas as pd\nimport plotly.express as px\n```\n\n'
+    'For all visualizations, use Plotly and display figures using `st.plotly_chart(fig, key="unique_key")`.\n'
+    'Do NOT use matplotlib or seaborn.\n'
+    'IMPORTANT: Do NOT read any data from local files. Assume the uploaded data is already loaded '
+    'into a pandas DataFrame called `df`.\n\n'
+    f'Context:\n{context}\n\n'
+    f'User question: {question}\nAnswer:\n'
+    'Provide the code wrapped in triple backticks with python, like:\n'
+    '```python\n...code...\n```\n'
 )
+
 
 
     response = openai.ChatCompletion.create(

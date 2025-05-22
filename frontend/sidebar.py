@@ -16,16 +16,23 @@ def full_sidebar():
 
 
 def chat_sessions_sidebar():
+    if "username" not in st.session_state:
+        st.warning("🔐 Please log in to see your chat sessions.")
+        return
+
     st.subheader("🕘 Chat Sessions")
-    sessions = get_all_sessions(st.session_state["username"])
+
+    username = st.session_state["username"]
+    sessions = get_all_sessions(username)
 
     for i, session in enumerate(sessions):
         session_id = session["id"]
         session_name = session.get("session_name", "Unnamed Session")
-
         created_at = session.get("created_at", "")[:10]
 
         col1, col2, col3 = st.columns([2, 1, 1])
+
+        # Select session
         with col1:
             if st.button(f"{session_name} ({created_at})", key=f"select_{session_id}_{i}"):
                 st.session_state.selected_session = session_id
@@ -35,18 +42,21 @@ def chat_sessions_sidebar():
                 ]
                 st.rerun()
 
+        # Rename session
         with col2:
             if st.button("✏️", key=f"rename_btn_{session_id}_{i}"):
                 st.session_state[f"renaming_{session_id}"] = True
 
+        # Delete session
         with col3:
             if st.button("🗑️", key=f"delete_{session_id}_{i}"):
-                delete_session(session_id, st.session_state["username"])
-                if st.session_state.selected_session == session_id:
+                delete_session(session_id, username)
+                if st.session_state.get("selected_session") == session_id:
                     st.session_state.selected_session = None
                     st.session_state.messages = []
                 st.rerun()
 
+        # Rename input box
         if st.session_state.get(f"renaming_{session_id}", False):
             new_name = st.text_input("New session name:", value=session_name, key=f"rename_input_{session_id}")
             if st.button("💾 Save", key=f"save_rename_{session_id}"):
@@ -54,9 +64,10 @@ def chat_sessions_sidebar():
                 st.session_state[f"renaming_{session_id}"] = False
                 st.rerun()
 
-
+    # New chat session
     if st.button("➕ New Chat"):
-        new_id = create_new_session(st.session_state.username, f"Session {len(sessions)+1}")
+        new_session_name = f"Session {len(sessions) + 1}"
+        new_id = create_new_session(username, new_session_name)
         st.session_state.selected_session = new_id
         st.session_state.messages = []
         st.rerun()
