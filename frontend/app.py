@@ -9,6 +9,7 @@ from auth import auth_sidebar
 from sidebar import chat_sessions_sidebar
 from chat import chat_interface
 from sidebar_sections import show_faqs, show_definitions, show_forms_and_docs
+from manual_lookup import show_manual_lookup
 
 # Fix pandas.compat.StringIO for old code compatibility
 pd.compat.StringIO = StringIO
@@ -40,7 +41,7 @@ if st.session_state.get("token"):
     # Sidebar navigation radio buttons
     option = st.sidebar.radio(
         "📌 **Navigate to:**",
-        ["Ask AI", "FAQs", "Definitions", "Forms & Docs"],
+        ["Ask AI", "FAQs", "Definitions", "Forms & Docs", "Manual Lookup"],
         format_func=lambda x: f"💬 {x}" if x == "Ask AI" else x
     )
 
@@ -104,6 +105,10 @@ if st.session_state.get("token"):
 
     elif option == "Forms & Docs":
         show_forms_and_docs(links)
+
+    elif option == "Manual Lookup":
+        show_manual_lookup()
+
 
 else:
     st.info("🔐 Please login or sign up using the sidebar to start chatting.")
