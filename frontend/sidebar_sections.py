@@ -9,12 +9,28 @@ def show_faqs():
     st.subheader("📌 Frequently Asked Questions")
     faqs_df = load_faqs()
 
+    search_query = st.text_input("🔍 Search FAQs (by question or answer):", "")
+
     if not faqs_df.empty and "category" in faqs_df.columns:
+        # Apply search filter
+        if search_query:
+            faqs_df = faqs_df[
+                faqs_df["question"].str.contains(search_query, case=False, na=False) |
+                faqs_df["answer"].str.contains(search_query, case=False, na=False)
+            ]
+
+        if faqs_df.empty:
+            st.info("No FAQs matched your search.")
+            return
+
         categories = sorted(faqs_df["category"].dropna().unique())
 
         for category in categories:
+            category_df = faqs_df[faqs_df["category"] == category]
+            if category_df.empty:
+                continue
+
             with st.expander(f"🗂️ {category}", expanded=False):
-                category_df = faqs_df[faqs_df["category"] == category]
                 for i, row in category_df.iterrows():
                     faq_id = row.get("id", f"{category}_{i}")
                     is_open = st.toggle(f"{row['question']}", key=f"toggle_{faq_id}")
@@ -61,7 +77,7 @@ def show_faqs():
                 add_faq(category, question, answer)
                 st.success("FAQ added!")
                 st.rerun()
-            
+   
 
 
 

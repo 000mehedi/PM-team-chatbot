@@ -37,6 +37,7 @@ with st.sidebar:
 if st.session_state.get("token"):
     st.title("🤖 PM Support Chatbot")
     st.markdown("Ask questions or explore project management resources.")
+    
 
     # Sidebar navigation radio buttons
     option = st.sidebar.radio(

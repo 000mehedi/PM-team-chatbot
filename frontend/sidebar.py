@@ -16,7 +16,8 @@ def full_sidebar():
 
 
 def chat_sessions_sidebar():
-    if "username" not in st.session_state:
+    if not st.session_state.get("username"):
+
         st.warning("🔐 Please log in to see your chat sessions.")
         return
 

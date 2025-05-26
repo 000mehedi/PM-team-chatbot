@@ -1,85 +1,60 @@
 import streamlit as st
 import requests
+import os
+import sys  
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from backend.utils.supabase_client import supabase 
 
 def auth_sidebar():
     st.markdown('<div class="sidebar-title">🔐 Login</div>', unsafe_allow_html=True)
 
-    if "token" not in st.session_state or st.session_state.token is None:
+    if "user" not in st.session_state or st.session_state.user is None:
         tab = st.radio("Select Action", ["Login", "Sign Up"], index=0)
 
         if tab == "Login":
-            username_input = st.text_input("Username", placeholder="Enter your username")
-            password_input = st.text_input("Password", type="password", placeholder="Enter your password")
+            email = st.text_input("Email", placeholder="you@calgary.ca")
+            password = st.text_input("Password", type="password")
 
             if st.button("Login"):
-                try:
-                    res = requests.post(
-                        "http://localhost:8000/auth/login",
-                        data={"username": username_input, "password": password_input},
-                        headers={"Content-Type": "application/x-www-form-urlencoded"}
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        st.session_state.token = data["access_token"]
-                        st.session_state.username = data["username"]
-                        st.session_state.name = data["name"]
-                        st.session_state.messages = []
-                        st.session_state.selected_session = None
-                        st.success(f"Welcome, {st.session_state.name}!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid username or password")
-                except Exception as e:
-                    st.error(f"Login failed: {e}")
-
-        else:  # Sign Up
-            st.subheader("Create a new account")
-            new_username = st.text_input("Choose a username", key="signup_username")
-            new_name = st.text_input("Your full name", key="signup_name")
-            new_password = st.text_input("Choose a password", type="password", key="signup_password")
-
-            if st.button("Sign Up"):
-                if not new_username or not new_password or not new_name:
-                    st.error("Please fill all fields")
+                if not email.endswith("@calgary.ca"):
+                    st.warning("Only @calgary.ca emails are allowed.")
                 else:
                     try:
-                        res = requests.post(
-                            "http://localhost:8000/auth/register",
-                            json={"username": new_username, "password": new_password, "name": new_name},
-                            headers={"Content-Type": "application/json"}
-                        )
-                        if res.status_code == 201:
-                            st.success("User created successfully! Logging you in...")
+                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                        st.session_state.user = res.user
+                        st.session_state.token = res.session.access_token
+                        st.session_state.username = res.user.email  # ✅ Needed for chat sessions
+                        st.success(f"Welcome, {res.user.email}!")
+                        st.rerun()
 
-                            # Auto login after signup
-                            login_res = requests.post(
-                                "http://localhost:8000/auth/login",
-                                data={"username": new_username, "password": new_password},
-                                headers={"Content-Type": "application/x-www-form-urlencoded"}
-                            )
-                            if login_res.status_code == 200:
-                                data = login_res.json()
-                                st.session_state.token = data["access_token"]
-                                st.session_state.username = data["username"]
-                                st.session_state.name = data["name"]
-                                st.session_state.messages = []
-                                st.session_state.selected_session = None
-                                st.rerun()  # Refresh the app
-                            else:
-                                st.error("Signup succeeded but auto-login failed. Please login manually.")
-                        else:
-                            detail = res.json().get("detail", "Signup failed")
-                            st.error(f"Error: {detail}")
+                    except Exception as e:
+                        st.error(f"Login failed: {e}")
+
+        else:  # Sign Up
+            email = st.text_input("Email", key="signup_email")
+            password = st.text_input("Password", type="password", key="signup_password")
+
+            if st.button("Sign Up"):
+                if not email or not password:
+                    st.error("Please fill in all fields.")
+                elif not email.endswith("@calgary.ca"):
+                    st.warning("Only @calgary.ca emails are allowed.")
+                else:
+                    try:
+                        res = supabase.auth.sign_up({"email": email, "password": password})
+                        st.success("Check your email to confirm your account.")
                     except Exception as e:
                         st.error(f"Signup failed: {e}")
-
-
     else:
-        st.markdown(f"**Logged in as:** {st.session_state.name}")
-        if st.button("Logout", key="logout_button"):
-            st.session_state.token = None
-            st.session_state.username = None
-            st.session_state.name = None
-            st.session_state.messages = []
-            st.session_state.selected_session = None
+        email = st.session_state.user.email
+        st.markdown(f"**Logged in as:** {email}")
+        if st.button("Logout"):
+            try:
+                supabase.auth.sign_out()
+            except Exception as e:
+                st.warning(f"Logout error: {e}")
+            for key in ["user", "token", "messages", "username", "name", "selected_session"]:
+                st.session_state.pop(key, None)
+
             st.rerun()
