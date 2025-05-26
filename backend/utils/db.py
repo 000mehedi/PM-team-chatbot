@@ -1,82 +1,60 @@
 from datetime import datetime
 import pandas as pd
 from io import BytesIO
-from supabase import Client
+import base64
 from .supabase_client import supabase
 
 # ======================= User =======================
 
-def add_user(username: str, password: str, name: str):
+def add_user(username: str, password: str, name: str) -> None:
     supabase.table("users").insert({
         "username": username,
         "password": password,
         "name": name
     }).execute()
 
-
-def get_user_by_username(username: str):
+def get_user_by_username(username: str) -> dict | None:
     res = supabase.table("users").select("*").eq("username", username).execute()
     data = res.data
-    if data and len(data) == 1:
-        return data[0]
-    else:
-        return None
-
-
-
-def rename_session(session_id: int, new_name: str):
-    supabase.table("chats").update({"session_name": new_name}).eq("id", session_id).execute()
+    return data[0] if data and len(data) == 1 else None
 
 
 # ======================= Uploaded File =======================
 
-import base64
-
-def save_uploaded_file(session_id, filename, bytes_data):
-    # Encode bytes to base64 string
+def save_uploaded_file(session_id: int, filename: str, bytes_data: bytes):
     encoded_content = base64.b64encode(bytes_data).decode('utf-8')
-
-    # Upsert (insert or update) the file into Supabase
-    res = supabase.table("uploaded_files").upsert({
+    return supabase.table("uploaded_files").upsert({
         "session_id": session_id,
         "filename": filename,
-        "content": encoded_content  # store base64 string, not raw bytes
+        "content": encoded_content
     }).execute()
 
-    return res
-
-def load_uploaded_file(session_id):
+def load_uploaded_file(session_id: int) -> pd.DataFrame | None:
     if not session_id:
-        return None  # No session selected, so no file to load
+        return None
 
     res = supabase.table("uploaded_files") \
         .select("filename, content") \
         .eq("session_id", session_id) \
         .execute()
 
-    if not res.data or len(res.data) == 0:
-        # No file uploaded for this session yet
+    if not res.data:
         return None
 
-    # There should be only one row due to PRIMARY KEY constraint
     row = res.data[0]
     filename, encoded_content = row["filename"], row["content"]
-
-    # Decode base64 string to bytes
     file_bytes = base64.b64decode(encoded_content)
 
-    if filename.endswith('.xlsx') or filename.endswith('.xls'):
+    if filename.endswith(('.xlsx', '.xls')):
         return pd.read_excel(BytesIO(file_bytes))
     elif filename.endswith('.csv'):
         return pd.read_csv(BytesIO(file_bytes))
-    else:
-        return None
-
+    return None
 
 
 # ======================= Chat Sessions =======================
 
-def create_new_session(username: str, session_name: str):
+def create_new_session(username: str, session_name: str) -> int:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     full_name = f"{session_name} ({created_at})"
     res = supabase.table("chats").insert({
@@ -86,63 +64,38 @@ def create_new_session(username: str, session_name: str):
     }).execute()
     return res.data[0]["id"]
 
-
-def get_all_sessions(username: str):
+def get_all_sessions(username: str) -> list:
     res = supabase.table("chats") \
-    .select("*") \
-    .eq("username", username) \
-    .order("created_at", desc=True) \
-    .execute()
+        .select("*") \
+        .eq("username", username) \
+        .order("created_at", desc=True) \
+        .execute()
+    chats = res.data or []
+    return [{
+        "id": chat["id"],
+        "display_name": f"{chat['session_name']} ({chat['created_at']})",
+        "session_name": chat["session_name"],
+        "created_at": chat["created_at"]
+    } for chat in chats]
 
-    chats = res.data
-    return [
-        {
-            "id": chat["id"],
-            "display_name": f"{chat['session_name']} ({chat['created_at']})",
-            "session_name": chat["session_name"],
-            "created_at": chat["created_at"]
-        }
-        for chat in chats
-    ]
-
-def load_faqs():
-    res = supabase.table("faqs").select("*").execute()
-    data = res.data
-    return pd.DataFrame(data) if data else pd.DataFrame(columns=["question", "answer"])
-
-def add_faq(category, question, answer):
-    # Example with Supabase insert
-    supabase.table("faqs").insert({
-        "category": category,
-        "question": question,
-        "answer": answer
-    }).execute()
-
-
-
-def get_last_messages(session_id, n=10):
-    res = supabase.table("messages").select("role, content") \
-        .eq("session_id", session_id) \
-        .order("timestamp", desc=True) \
-        .limit(n).execute()
-    rows = res.data
-    rows.reverse()
-    return [{"role": row["role"], "content": row["content"]} for row in rows]
-
-
-def update_session_name(session_id, new_name):
+def update_session_name(session_id: int, new_name: str) -> None:
     supabase.table("chats").update({"session_name": new_name}).eq("id", session_id).execute()
 
-
-def rename_session_with_timestamp(session_id, base_name):
+def rename_session_with_timestamp(session_id: int, base_name: str) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    new_name = f"{base_name} ({timestamp})"
-    update_session_name(session_id, new_name)
+    update_session_name(session_id, f"{base_name} ({timestamp})")
+
+def delete_session(session_id: int, username: str) -> None:
+    if not user_owns_session(username, session_id):
+        raise PermissionError("You don't own this session")
+    supabase.table("messages").delete().eq("session_id", session_id).execute()
+    supabase.table("uploaded_files").delete().eq("session_id", session_id).execute()
+    supabase.table("chats").delete().eq("id", session_id).execute()
 
 
 # ======================= Messages =======================
 
-def save_message(session_id: int, role: str, content: str, message_type: str = "text"):
+def save_message(session_id: int, role: str, content: str, message_type: str = "text") -> None:
     supabase.table("messages").insert({
         "session_id": session_id,
         "role": role,
@@ -151,49 +104,62 @@ def save_message(session_id: int, role: str, content: str, message_type: str = "
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }).execute()
 
-
-def load_messages_by_session(session_id):
+def load_messages_by_session(session_id: int) -> list:
     if not session_id:
         return []
-
     res = supabase.table("messages") \
         .select("*") \
         .eq("session_id", session_id) \
         .order("timestamp", desc=False) \
         .execute()
+    return res.data or []
 
-    return res.data if res.data else []
+def get_last_messages(session_id: int, n: int = 10) -> list:
+    res = supabase.table("messages") \
+        .select("role, content") \
+        .eq("session_id", session_id) \
+        .order("timestamp", desc=True) \
+        .limit(n) \
+        .execute()
+    rows = res.data or []
+    rows.reverse()
+    return [{"role": row["role"], "content": row["content"]} for row in rows]
 
-def delete_faq(faq_id: str):
-    supabase.table("faqs").delete().eq("id", faq_id).execute()
-
-
-
-
-def add_message_to_session(username: str, session_id: int, content: str, role: str = "user"):
+def add_message_to_session(username: str, session_id: int, content: str, role: str = "user") -> None:
     if not user_owns_session(username, session_id):
         raise PermissionError("You don't own this session")
     save_message(session_id, role, content)
 
-
-def get_messages_for_session(username: str, session_id: int):
+def get_messages_for_session(username: str, session_id: int) -> list:
     if not user_owns_session(username, session_id):
         raise PermissionError("You don't own this session")
     return load_messages_by_session(session_id)
 
 
-def delete_session(session_id: int, username: str):
-    if not user_owns_session(username, session_id):
-        raise PermissionError("You don't own this session")
+# ======================= FAQ =======================
 
-    supabase.table("messages").delete().eq("session_id", session_id).execute()
-    supabase.table("uploaded_files").delete().eq("session_id", session_id).execute()
-    supabase.table("chats").delete().eq("id", session_id).execute()
+def load_faqs() -> pd.DataFrame:
+    res = supabase.table("faqs").select("*").execute()
+    data = res.data
+    return pd.DataFrame(data) if data else pd.DataFrame(columns=["category", "question", "answer"])
+
+def add_faq(category: str, question: str, answer: str) -> None:
+    supabase.table("faqs").insert({
+        "category": category,
+        "question": question,
+        "answer": answer
+    }).execute()
+
+def delete_faq(faq_id: str) -> None:
+    supabase.table("faqs").delete().eq("id", faq_id).execute()
 
 
-# ======================= Security Check =======================
+# ======================= Security =======================
 
-def user_owns_session(username: str, session_id: int):
+def user_owns_session(username: str, session_id: int) -> bool:
     res = supabase.table("chats").select("*") \
-        .eq("id", session_id).eq("username", username).single().execute()
+        .eq("id", session_id) \
+        .eq("username", username) \
+        .single() \
+        .execute()
     return res.data is not None
