@@ -37,7 +37,7 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
     user_id = st.session_state["user_id"]
     user_name = st.session_state.get("name", "User")
 
-    st.title(f"🤖 PM Support Chatbot — Welcome, {user_name}!")
+    st.title(f"🤖 PM Support Chatbot")
     st.markdown("Ask questions or explore project management resources.")
 
     # Sidebar navigation radio buttons
