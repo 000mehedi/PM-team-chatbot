@@ -4,9 +4,9 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.utils.db import load_faqs, add_faq, delete_faq
-
 def show_faqs():
     st.subheader("📌 Frequently Asked Questions")
+    st.write(f"DEBUG: email in session_state = {st.session_state.get('email')}")
     faqs_df = load_faqs()
 
     search_query = st.text_input("🔍 Search FAQs (by question or answer):", "")
@@ -21,35 +21,29 @@ def show_faqs():
 
         if faqs_df.empty:
             st.info("No FAQs matched your search.")
-            return
+        else:
+            categories = sorted(faqs_df["category"].dropna().unique())
+            for category in categories:
+                category_df = faqs_df[faqs_df["category"] == category]
+                if category_df.empty:
+                    continue
 
-        categories = sorted(faqs_df["category"].dropna().unique())
+                with st.expander(f"🗂️ {category}", expanded=False):
+                    for i, row in category_df.iterrows():
+                        faq_id = row.get("id", f"{category}_{i}")
+                        is_open = st.toggle(f"{row['question']}", key=f"toggle_{faq_id}")
+                        if is_open:
+                            st.markdown(row["answer"], unsafe_allow_html=True)
 
-        for category in categories:
-            category_df = faqs_df[faqs_df["category"] == category]
-            if category_df.empty:
-                continue
+                        # Admin delete button (per FAQ)
+                        if st.session_state.get("email") == "admin@calgary.ca":
+                            if st.button("🗑️ Delete", key=f"delete_{faq_id}"):
+                                delete_faq(faq_id)
+                                st.success("FAQ deleted!")
+                                st.rerun()
 
-            with st.expander(f"🗂️ {category}", expanded=False):
-                for i, row in category_df.iterrows():
-                    faq_id = row.get("id", f"{category}_{i}")
-                    is_open = st.toggle(f"{row['question']}", key=f"toggle_{faq_id}")
-                    if is_open:
-                        st.markdown(row["answer"], unsafe_allow_html=True)
-
-                        # Admin delete button
-                        if st.session_state.get("username") == "admin@calgary.ca":
-                            delete_col, _ = st.columns([1, 9])
-                            with delete_col:
-                                if st.button("🗑️", key=f"delete_{faq_id}", help="Delete this FAQ"):
-                                    delete_faq(faq_id)
-                                    st.success("FAQ deleted.")
-                                    st.rerun()
-    else:
-        st.info("No FAQs found.")
-
-    # Admin: Add New FAQ
-    if st.session_state.get("username") == "admin@calgary.ca":
+    # Admin: Add New FAQ (always shown for admin, even if no FAQs)
+    if st.session_state.get("email") == "admin@calgary.ca":
         st.markdown("---")
         st.markdown("### ➕ Add a New FAQ")
         with st.form("add_faq_form"):
@@ -77,9 +71,6 @@ def show_faqs():
                 add_faq(category, question, answer)
                 st.success("FAQ added!")
                 st.rerun()
-   
-
-
 
 
 def show_definitions(def_df):

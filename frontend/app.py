@@ -19,7 +19,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from backend.utils.db import save_uploaded_file, load_uploaded_file
 
 # Load static data once
-#faqs = pd.read_csv("backend/data/faqs.csv", encoding="utf-8-sig")
 definitions = pd.read_csv("backend/data/definitions.csv")
 links = pd.read_csv("backend/data/links.csv")
 
@@ -34,10 +33,12 @@ with st.sidebar:
     auth_sidebar()
 
 # Main App Body
-if st.session_state.get("token"):
-    st.title("🤖 PM Support Chatbot")
+if st.session_state.get("token") and st.session_state.get("user_id"):
+    user_id = st.session_state["user_id"]
+    user_name = st.session_state.get("name", "User")
+
+    st.title(f"🤖 PM Support Chatbot — Welcome, {user_name}!")
     st.markdown("Ask questions or explore project management resources.")
-    
 
     # Sidebar navigation radio buttons
     option = st.sidebar.radio(
@@ -47,7 +48,7 @@ if st.session_state.get("token"):
     )
 
     if option == "Ask AI":
-        # Show chat sessions sidebar inside the sidebar container
+        # Show chat sessions sidebar inside the sidebar container, pass user_id
         with st.sidebar:
             st.markdown("---")
             chat_sessions_sidebar()
@@ -66,8 +67,8 @@ if st.session_state.get("token"):
                     with st.spinner("Reading uploaded file..."):
                         bytes_data = uploaded_file.read()
 
-                        # Save file bytes to Supabase (or DB)
-                        save_uploaded_file(selected_session, uploaded_file.name, bytes_data)
+                        # Save file bytes to DB with user_id
+                        save_uploaded_file(selected_session, uploaded_file.name, bytes_data, user_id=user_id)
 
                         # Read uploaded file into DataFrame
                         if uploaded_file.name.endswith(".csv"):
@@ -83,10 +84,11 @@ if st.session_state.get("token"):
                 except Exception as e:
                     st.error(f"❌ Error reading file: {e}")
             else:
-                # No new file uploaded; try loading previously saved file for session
+                # No new file uploaded; try loading previously saved file for session and user
                 if "uploaded_df" not in st.session_state or st.session_state.uploaded_df is None:
                     with st.spinner("Loading previous session data..."):
-                        df_from_db = load_uploaded_file(selected_session)
+                        df_from_db = load_uploaded_file(selected_session, user_id=user_id)
+
                         if df_from_db is not None:
                             st.session_state.uploaded_df = df_from_db
                             st.info("📁 Loaded previously uploaded file for this session.")
@@ -109,7 +111,6 @@ if st.session_state.get("token"):
 
     elif option == "Manual Lookup":
         show_manual_lookup()
-
 
 else:
     st.info("🔐 Please login or sign up using the sidebar to start chatting.")

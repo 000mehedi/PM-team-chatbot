@@ -16,15 +16,14 @@ def full_sidebar():
 
 
 def chat_sessions_sidebar():
-    if not st.session_state.get("username"):
-
+    if not st.session_state.get("user_id"):
         st.warning("🔐 Please log in to see your chat sessions.")
         return
 
     st.subheader("🕘 Chat Sessions")
 
-    username = st.session_state["username"]
-    sessions = get_all_sessions(username)
+    user_id = st.session_state["user_id"]
+    sessions = get_all_sessions(user_id)
 
     for i, session in enumerate(sessions):
         session_id = session["id"]
@@ -51,7 +50,7 @@ def chat_sessions_sidebar():
         # Delete session
         with col3:
             if st.button("🗑️", key=f"delete_{session_id}_{i}"):
-                delete_session(session_id, username)
+                delete_session(session_id, user_id)
                 if st.session_state.get("selected_session") == session_id:
                     st.session_state.selected_session = None
                     st.session_state.messages = []
@@ -68,7 +67,7 @@ def chat_sessions_sidebar():
     # New chat session
     if st.button("➕ New Chat"):
         new_session_name = f"Session {len(sessions) + 1}"
-        new_id = create_new_session(username, new_session_name)
+        new_id = create_new_session(user_id, new_session_name)
         st.session_state.selected_session = new_id
         st.session_state.messages = []
         st.rerun()
