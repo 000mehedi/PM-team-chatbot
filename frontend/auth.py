@@ -38,8 +38,7 @@ def auth_sidebar():
                             if profile.data:
                                 st.session_state.name = profile.data[0]["name"]
                             else:
-                                # Prompt user for name if not yet stored
-                                name = st.text_input("Enter your name to complete setup", key="name_input")
+
                                 if name:
                                     st.session_state.name = name
                                     supabase.table("user_profiles").insert({
@@ -60,15 +59,24 @@ def auth_sidebar():
         else:  # Sign Up
             email = st.text_input("Email", key="signup_email")
             password = st.text_input("Password", type="password", key="signup_password")
+            name = st.text_input("Full Name", key="signup_name")  # <-- Add name field
 
             if st.button("Sign Up"):
-                if not email or not password:
+                if not email or not password or not name:
                     st.error("Please fill in all fields.")
                 elif not email.endswith("@calgary.ca"):
                     st.warning("Only @calgary.ca emails are allowed.")
                 else:
                     try:
                         res = supabase.auth.sign_up({"email": email, "password": password})
+                        user = res.user
+                        if user:
+                            # Save name to user_profiles table
+                            supabase.table("user_profiles").insert({
+                                "user_id": user.id,
+                                "email": email,
+                                "name": name
+                            }).execute()
                         st.success("Check your email to confirm your account.")
                     except Exception as e:
                         st.error(f"Signup failed: {e}")
