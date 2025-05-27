@@ -76,7 +76,7 @@ def auth_sidebar():
     else:
         email = st.session_state.user.email if st.session_state.user else "Unknown"
         name = st.session_state.get("name", email)
-        st.markdown(f"**Logged in as:** {name} ({email})")
+        st.markdown(f"**Logged in as:** {name}")
 
         if st.button("Logout"):
             try:

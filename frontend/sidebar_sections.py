@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from backend.utils.db import load_faqs, add_faq, delete_faq
 def show_faqs():
     st.subheader("📌 Frequently Asked Questions")
-    st.write(f"DEBUG: email in session_state = {st.session_state.get('email')}")
+ 
     faqs_df = load_faqs()
 
     search_query = st.text_input("🔍 Search FAQs (by question or answer):", "")
