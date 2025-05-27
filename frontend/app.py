@@ -83,6 +83,7 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                         st.dataframe(df.head())
                 except Exception as e:
                     st.error(f"❌ Error reading file: {e}")
+                    
             else:
                 # No new file uploaded; try loading previously saved file for session and user
                 if "uploaded_df" not in st.session_state or st.session_state.uploaded_df is None:
