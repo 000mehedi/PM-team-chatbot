@@ -52,7 +52,7 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
     # Sidebar navigation radio buttons
     option = st.sidebar.radio(
         "📌 **Navigate to:**",
-        ["Ask AI", "FAQs", "Definitions", "Forms & Docs", "Manual Lookup"],
+        ["Ask AI", "FAQs", "Definitions", "Forms & Docs", "Manual Lookup(broken)"],
         format_func=lambda x: f"💬 {x}" if x == "Ask AI" else x
     )
 
