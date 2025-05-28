@@ -170,3 +170,17 @@ def user_owns_session(user_id: str, session_id: int) -> bool:
         .single() \
         .execute()
     return res.data is not None
+
+
+
+def get_user_memory(user_id):
+    res = supabase.table("user_memory").select("memory").eq("user_id", user_id).limit(1).execute()
+    if res.data:
+        return res.data[0]["memory"]
+    return ""  # fallback if no memory yet
+def update_user_memory(user_id, new_memory):
+    existing = supabase.table("user_memory").select("user_id").eq("user_id", user_id).execute()
+    if existing.data:
+        supabase.table("user_memory").update({"memory": new_memory}).eq("user_id", user_id).execute()
+    else:
+        supabase.table("user_memory").insert({"user_id": user_id, "memory": new_memory}).execute()

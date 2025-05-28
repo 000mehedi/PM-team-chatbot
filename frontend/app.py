@@ -16,11 +16,20 @@ pd.compat.StringIO = StringIO
 
 # Add backend to system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from backend.utils.db import save_uploaded_file, load_uploaded_file
+from backend.utils.db import save_uploaded_file, load_uploaded_file, load_faqs
 
 # Load static data once
 definitions = pd.read_csv("backend/data/definitions.csv")
 links = pd.read_csv("backend/data/links.csv")
+
+# Load FAQs for AI context
+faqs_df = load_faqs()
+faqs_context = ""
+if faqs_df is not None and not faqs_df.empty:
+    faqs_context = "\n".join(
+        f"Q: {row['question']}\nA: {row['answer']}"
+        for _, row in faqs_df.iterrows()
+    )
 
 # Streamlit config
 st.set_page_config(page_title="PM Support Chatbot", page_icon="🤖", layout="wide")
@@ -83,7 +92,7 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                         st.dataframe(df.head())
                 except Exception as e:
                     st.error(f"❌ Error reading file: {e}")
-                    
+
             else:
                 # No new file uploaded; try loading previously saved file for session and user
                 if "uploaded_df" not in st.session_state or st.session_state.uploaded_df is None:
@@ -98,8 +107,12 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                             st.session_state.uploaded_df = None
                             st.info("ℹ️ No uploaded file found. Please upload a file to start.")
 
-            # Pass the DataFrame (or None) to the chat interface
-            chat_interface(st.session_state.get("uploaded_df"))
+            # Pass the DataFrame (or None), faqs_context, and faqs_df to the chat interface
+            chat_interface(
+                st.session_state.get("uploaded_df"),
+                faqs_context=faqs_context,
+                faqs_df=faqs_df
+            )
 
     elif option == "FAQs":
         show_faqs()

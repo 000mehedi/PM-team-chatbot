@@ -77,7 +77,22 @@ def auth_sidebar():
                                 "email": email,
                                 "name": name
                             }).execute()
-                        st.success("Check your email to confirm your account.")
+                            st.success("Account Created.")
+
+                            # --- Auto login after signup ---
+                            try:
+                                login_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                                login_user = login_res.user
+                                if login_user:
+                                    st.session_state.user = login_user
+                                    st.session_state.token = login_res.session.access_token
+                                    st.session_state.user_id = login_user.id
+                                    st.session_state.email = login_user.email
+                                    st.session_state.name = name
+                                    st.success(f"Welcome, {name}! You are now logged in.")
+                                    st.rerun()
+                            except Exception as login_e:
+                                st.warning(f"Auto-login failed: {login_e}")
                     except Exception as e:
                         st.error(f"Signup failed: {e}")
 
@@ -85,6 +100,8 @@ def auth_sidebar():
         email = st.session_state.user.email if st.session_state.user else "Unknown"
         name = st.session_state.get("name", email)
         st.markdown(f"**Logged in as:** {name}")
+       
+
 
         if st.button("Logout"):
             try:
