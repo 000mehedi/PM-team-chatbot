@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install openai supabase
+          pip install openai supabase pandas
 
       - name: Run fine-tune job
         env:
