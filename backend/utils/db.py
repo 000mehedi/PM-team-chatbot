@@ -3,8 +3,7 @@ import pandas as pd
 from io import BytesIO
 import base64
 from typing import Optional, List, Dict
-from .supabase_client import supabase
-
+from backend.utils.supabase_client import supabase
 # ======================= User =======================
 
 def add_user(username: str, password: str, name: str) -> None:
