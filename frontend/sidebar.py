@@ -12,6 +12,7 @@ def full_sidebar():
     definitions_section()
     forms_and_docs_section()
     ask_a_question_section()
+    show_session_analytics()
 
 
 
@@ -71,3 +72,6 @@ def chat_sessions_sidebar():
         st.session_state.selected_session = new_id
         st.session_state.messages = []
         st.rerun()
+
+
+

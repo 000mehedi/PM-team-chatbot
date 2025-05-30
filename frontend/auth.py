@@ -113,3 +113,6 @@ def auth_sidebar():
                 st.session_state.pop(key, None)
 
             st.rerun()
+
+
+            

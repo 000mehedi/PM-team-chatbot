@@ -8,7 +8,7 @@ from styles import inject_styles
 from auth import auth_sidebar
 from sidebar import chat_sessions_sidebar
 from chat import chat_interface
-from sidebar_sections import show_faqs, show_definitions, show_forms_and_docs
+from sidebar_sections import show_faqs, show_definitions, show_forms_and_docs, show_user_feedback, show_session_analytics
 from manual_lookup import show_manual_lookup
 
 # Fix pandas.compat.StringIO for old code compatibility
@@ -50,12 +50,20 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
     st.markdown("Ask questions or explore project management resources.")
 
     # Sidebar navigation radio buttons
+      # Sidebar navigation radio buttons
+    sidebar_options = [
+        "Ask AI", "FAQs", "Definitions", "Forms & Docs", "Manual Lookup(broken)", "User Feedback"
+    ]
+
+    # Only add Session Analytics for admin
+    if st.session_state.get("email") == "admin@calgary.ca":
+        sidebar_options.append("Session Analytics")
+
     option = st.sidebar.radio(
         "📌 **Navigate to:**",
-        ["Ask AI", "FAQs", "Definitions", "Forms & Docs", "Manual Lookup(broken)"],
+        sidebar_options,
         format_func=lambda x: f"💬 {x}" if x == "Ask AI" else x
     )
-
     if option == "Ask AI":
         # Show chat sessions sidebar inside the sidebar container, pass user_id
         with st.sidebar:
@@ -125,6 +133,11 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
 
     elif option == "Manual Lookup":
         show_manual_lookup()
+    
+    elif option == "User Feedback":
+        show_user_feedback()
+    elif option == "Session Analytics":
+        show_session_analytics()
 
 else:
     st.info("🔐 Please login or sign up using the sidebar to start chatting.")

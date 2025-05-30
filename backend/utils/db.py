@@ -172,6 +172,21 @@ def user_owns_session(user_id: str, session_id: int) -> bool:
     return res.data is not None
 
 
+def save_user_feedback(user_id, user_name, title, feedback, file_bytes=None, file_name=None):
+    encoded_file = base64.b64encode(file_bytes).decode("utf-8") if file_bytes else None
+    data = {
+        "user_id": user_id,
+        "user_name": user_name,  # <-- add this line
+        "title": title,
+        "feedback": feedback,
+        "file_name": file_name,
+        "file_bytes": encoded_file,
+    }
+    supabase.table("user_feedback").insert(data).execute()
+
+def load_all_feedback():
+    res = supabase.table("user_feedback").select("*").order("created_at", desc=True).execute()
+    return res.data if hasattr(res, "data") else []
 
 def get_user_memory(user_id):
     res = supabase.table("user_memory").select("memory").eq("user_id", user_id).limit(1).execute()
@@ -184,3 +199,124 @@ def update_user_memory(user_id, new_memory):
         supabase.table("user_memory").update({"memory": new_memory}).eq("user_id", user_id).execute()
     else:
         supabase.table("user_memory").insert({"user_id": user_id, "memory": new_memory}).execute()
+
+def get_all_sessions_analytics():
+    sessions = supabase.table("chats").select("*").execute()
+    analytics = []
+    if hasattr(sessions, "data"):
+        for session in sessions.data:
+            session_id = session["id"]
+            session_name = session.get("session_name", f"Session {session_id}")
+            user_id = session.get("user_id", "Unknown")
+            # Get user name
+            user_profile = supabase.table("user_profiles").select("name").eq("user_id", user_id).execute()
+            user_name = user_profile.data[0]["name"] if user_profile.data else "Unknown"
+            # Get messages for this session
+            msgs = supabase.table("messages").select("*").eq("session_id", session_id).order("timestamp", desc=False).execute()
+            messages = msgs.data if hasattr(msgs, "data") else []
+            num_messages = len(messages)
+            user_messages = sum(1 for m in messages if m.get("role") == "user")
+            bot_messages = sum(1 for m in messages if m.get("role") == "assistant")
+            # Session duration
+            if messages:
+                start_time = messages[0].get("timestamp")
+                end_time = messages[-1].get("timestamp")
+                from datetime import datetime
+                fmt = "%Y-%m-%d %H:%M:%S"
+                try:
+                    duration = (datetime.strptime(end_time, fmt) - datetime.strptime(start_time, fmt)).total_seconds() / 60
+                    duration = round(duration, 2)
+                except Exception:
+                    duration = "N/A"
+            else:
+                duration = "N/A"
+            # Average response time (user to bot)
+            response_times = []
+            last_user_time = None
+            for m in messages:
+                if m.get("role") == "user":
+                    last_user_time = m.get("timestamp")
+                elif m.get("role") == "assistant" and last_user_time:
+                    try:
+                        t1 = datetime.strptime(last_user_time, fmt)
+                        t2 = datetime.strptime(m.get("timestamp"), fmt)
+                        response_times.append((t2 - t1).total_seconds())
+                    except Exception:
+                        pass
+                    last_user_time = None
+            avg_response_time = round(sum(response_times)/len(response_times), 2) if response_times else "N/A"
+            # Last activity
+            last_activity = messages[-1].get("timestamp") if messages else session.get("created_at", "")
+            # Top words
+            from collections import Counter
+            import re
+            stopwords = {"the", "and", "to", "of", "a", "in", "for", "is", "on", "with", "as", "by", "at", "an", "be"}
+            words = []
+            for m in messages:
+                words += [w.lower() for w in re.findall(r"\b\w+\b", m["content"]) if w.lower() not in stopwords]
+            from itertools import islice
+            top_words = [w for w, _ in islice(Counter(words).most_common(3), 3)]
+            analytics.append({
+                "session_id": session_id,
+                "session_name": session_name,
+                "user_id": user_id,
+                "user_name": user_name,
+                "num_messages": num_messages,
+                "user_messages": user_messages,
+                "bot_messages": bot_messages,
+                "duration_min": duration,
+                "avg_response_time_sec": avg_response_time,
+                "last_activity": last_activity[:19] if last_activity else "N/A",
+                "top_words": ", ".join(top_words) if top_words else "N/A"
+            })
+    return analytics
+
+def get_prompt_completion_pairs():
+    """
+    Returns a list of {'prompt': user_message, 'completion': bot_reply}
+    for all user/assistant message pairs in all sessions.
+    """
+    sessions = supabase.table("chats").select("id").execute()
+    pairs = []
+    if hasattr(sessions, "data"):
+        for session in sessions.data:
+            session_id = session["id"]
+            msgs = supabase.table("messages").select("role, content, timestamp").eq("session_id", session_id).order("timestamp", desc=False).execute()
+            messages = msgs.data if hasattr(msgs, "data") else []
+            last_user_msg = None
+            for m in messages:
+                if m.get("role") == "user":
+                    last_user_msg = m.get("content")
+                elif m.get("role") == "assistant" and last_user_msg:
+                    pairs.append({
+                        "prompt": last_user_msg.strip(),
+                        "completion": m.get("content", "").strip()
+                    })
+                    last_user_msg = None
+    return pairs
+
+def get_fine_tune_training_data(min_length=10):
+    """
+    Returns cleaned prompt-completion pairs from all sessions for fine-tuning.
+    """
+    pairs = get_prompt_completion_pairs()
+    seen = set()
+    clean_pairs = []
+    for pair in pairs:
+        prompt = pair["prompt"].strip()
+        completion = pair["completion"].strip()
+        if len(prompt) < min_length or len(completion) < min_length:
+            continue
+        if (prompt, completion) in seen:
+            continue
+        seen.add((prompt, completion))
+        clean_pairs.append(pair)
+    return clean_pairs
+
+def build_dynamic_context(top_n=10):
+    faqs = supabase.table("faqs").select("question, answer").execute()
+    if not hasattr(faqs, "data"):
+        return ""
+    top_faqs = faqs.data[:top_n]
+    context = "\n".join([f"Q: {f['question']}\nA: {f['answer']}" for f in top_faqs])
+    return context

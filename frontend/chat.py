@@ -23,7 +23,6 @@ def run_ai_response(code: str, context_vars: dict):
         st.code(code, language="python")
     return output
 
-
 def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None):
     # Display chat messages
     for msg in st.session_state.messages:
@@ -60,8 +59,8 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None):
         user_id = st.session_state.get("user_id")
         memory_enabled = True
         session_id = st.session_state.selected_session
-                # --- Conversational context enhancement ---
-        # Try to extract a subject (e.g., equipment name) from the prompt
+
+        # --- Conversational context enhancement ---
         import pandas as pd
         if "last_subject" not in st.session_state:
             st.session_state["last_subject"] = None
@@ -82,12 +81,14 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None):
         if any(kw in prompt.lower() for kw in ambiguous_keywords) and st.session_state["last_subject"]:
             prompt = f"{prompt} for {st.session_state['last_subject']}"
 
-
-
-
         # Save user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         save_message(session_id, "user", prompt)
+
+        # Always define memory before FAQ check
+        memory = ""
+        if memory_enabled and user_id:
+            memory = get_user_memory(user_id)
 
         # --- Semantic FAQ matching ---
         faq_answer = None
@@ -97,11 +98,6 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None):
         if faq_answer:
             response = faq_answer
         else:
-            # Build prompt with memory if enabled
-            memory = ""
-            if memory_enabled and user_id:
-                memory = get_user_memory(user_id)
-
             # Combine uploaded data and FAQ context
             context = ""
             if uploaded_df is not None:

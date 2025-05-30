@@ -1,9 +1,10 @@
 import streamlit as st
 import sys
+import base64
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.utils.db import load_faqs, add_faq, delete_faq
+from backend.utils.db import load_faqs, add_faq, delete_faq, get_all_sessions_analytics
 def show_faqs():
     st.subheader("📌 Frequently Asked Questions")
  
@@ -100,3 +101,89 @@ def show_forms_and_docs(links_df):
     st.subheader("📎 Reference Links")
     for _, row in links_df.iterrows():
         st.markdown(f"- [{row['Resource']}]({row['Link']})")
+
+
+
+def show_user_feedback():
+    st.subheader("📝 User Feedback")
+    with st.form("feedback_form"):
+        title = st.text_input("Title")
+        feedback = st.text_area("Your Feedback")
+        attachment = st.file_uploader("Attach a file (optional)")
+        submitted = st.form_submit_button("Submit Feedback")
+
+    if submitted:
+        file_bytes = attachment.read() if attachment else None
+        file_name = attachment.name if attachment else None
+        from backend.utils.db import save_user_feedback
+        save_user_feedback(
+            user_id=st.session_state.get("user_id"),
+             user_name=st.session_state.get("name"),
+            title=title,
+            feedback=feedback,
+            file_bytes=file_bytes,
+            file_name=file_name
+        )
+        st.success("Thank you for your feedback!")
+
+    # Admin view
+    if st.session_state.get("email") == "admin@calgary.ca":
+        from backend.utils.db import load_all_feedback
+        feedback_list = load_all_feedback()
+        st.markdown("---")
+        st.header("📬 User Feedback Inbox")
+        for fb in feedback_list:
+            st.subheader(fb["title"])
+            st.write(f"**From:** {fb.get('user_name', 'Unknown')}")
+            st.write(fb["feedback"])
+
+            if fb.get("file_name") and fb.get("file_bytes"):
+                try:
+                    file_bytes = base64.b64decode(fb["file_bytes"])
+                    file_name = fb["file_name"].lower()
+                    if file_name.endswith((".txt", ".csv")):
+                        st.markdown("**Preview:**")
+                        st.code(file_bytes.decode("utf-8", errors="replace"))
+                    elif file_name.endswith((".png", ".jpg", ".jpeg")):
+                        st.markdown("**Preview:**")
+                        st.image(file_bytes)
+                    elif file_name.endswith(".pdf"):
+                        st.markdown("**Preview:**")
+                        # Streamlit's st.pdf is not available, but you can use st.download_button for PDF
+                        st.info("PDF preview not supported. Please download to view.")
+                        st.download_button(
+                            f"Download {fb['file_name']}",
+                            data=file_bytes,
+                            file_name=fb["file_name"]
+                        )
+                    else:
+                        st.download_button(
+                            f"Download {fb['file_name']}",
+                            data=file_bytes,
+                            file_name=fb["file_name"]
+                        )
+                except Exception:
+                    st.warning(f"Attachment for {fb['file_name']} is corrupted or invalid.")
+            st.markdown("---")
+
+
+def show_session_analytics():
+    if st.session_state.get("email") != "admin@calgary.ca":
+        st.info("Session analytics are only available to admins.")
+        return
+
+    st.subheader("📊 Session Analytics (All Users)")
+    from backend.utils.db import get_all_sessions_analytics
+    analytics = get_all_sessions_analytics()
+    if not analytics:
+        st.info("No sessions to analyze.")
+        return
+    for a in analytics:
+        st.markdown(f"**{a['session_name']}**")
+        st.write(f"- User: {a['user_name']} ({a['user_id']})")
+        st.write(f"- Messages: {a['num_messages']} (User: {a['user_messages']}, Bot: {a['bot_messages']})")
+        st.write(f"- Duration: {a['duration_min']} min")
+        st.write(f"- Avg. Response Time: {a['avg_response_time_sec']} sec")
+        st.write(f"- Last Activity: {a['last_activity']}")
+        st.write(f"- Top Topics: {a['top_words']}")
+        st.markdown("---")
