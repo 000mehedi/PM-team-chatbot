@@ -1,0 +1,26 @@
+name: Fine Tune AI Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # Runs every day at 2am UTC
+  workflow_dispatch:       # Allows manual trigger from Actions tab
+
+jobs:
+  fine-tune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install openai supabase
+
+      - name: Run fine-tune job
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python fine_tune_job.py
