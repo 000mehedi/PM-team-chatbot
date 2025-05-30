@@ -22,5 +22,7 @@ jobs:
 
       - name: Run fine-tune job
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+            SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python fine_tune_job.py
