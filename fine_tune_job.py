@@ -13,7 +13,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def is_flagged(text):
     response = openai.moderations.create(input=text)
-    return response["results"][0]["flagged"]
+    return response.results[0].flagged
 
 # 1. Get cleaned training data
 pairs = get_fine_tune_training_data()
