@@ -17,11 +17,17 @@ if not pairs:
 jsonl_path = "fine_tune_data.jsonl"
 with open(jsonl_path, "w", encoding="utf-8") as f:
     for pair in pairs:
-        f.write(json.dumps(pair) + "\n")
+        # Each line must be a dict with a "messages" key
+        f.write(json.dumps({
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": pair["prompt"]},
+                {"role": "assistant", "content": pair["completion"]}
+            ]
+        }) + "\n")
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# New API for file upload
 with open(jsonl_path, "rb") as file_obj:
     file_response = openai.files.create(
         file=file_obj,
@@ -30,9 +36,8 @@ with open(jsonl_path, "rb") as file_obj:
 file_id = file_response.id
 logging.info(f"Uploaded file ID: {file_id}")
 
-# New API for fine-tuning job
 job = openai.fine_tuning.jobs.create(
     training_file=file_id,
-    model="gpt-3.5-turbo"
+    model="gpt-3.5-turbo-0125"
 )
 logging.info(f"Started fine-tuning job: {job.id}")
