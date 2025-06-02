@@ -2,7 +2,7 @@ name: Fine Tune AI Nightly
 
 on:
   schedule:
-    - cron: '0 18 * * 5'   # Every Friday at 18:00 UTC
+    - cron: '0 18 * * 5'   # Runs every day at 2am UTC
   workflow_dispatch:       # Allows manual trigger from Actions tab
 
 jobs:
@@ -16,37 +16,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install dependencies
         run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          else
-            pip install openai supabase pandas
-          fi
+          pip install openai supabase pandas
 
       - name: Run fine-tune job
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: |
-          python fine_tune_job.py
-          # Ensure the log file is created
-          if [ ! -f fine_tune_job.log ]; then
-            echo "Log file not found. Creating an empty log file." > fine_tune_job.log
-          fi
-
-      - name: Upload fine-tune log
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: fine_tune_job_log
-          path: fine_tune_job.log
+        run: python fine_tune_job.py

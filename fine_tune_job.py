@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 logging.basicConfig(filename="fine_tune_job.log", level=logging.INFO)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "backend", "utils"))
-from db import get_prompt_completion_pairs  # We'll use a custom function for recent data
+from db import get_prompt_completion_pairs  # Make sure this returns pairs with a 'timestamp' field
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -16,7 +16,7 @@ def is_flagged(text):
     response = openai.moderations.create(input=text)
     return response.results[0].flagged
 
-def get_recent_prompt_completion_pairs(days=30):
+def get_recent_prompt_completion_pairs(days=7):
     """
     Returns prompt-completion pairs from only the last `days` days.
     Assumes each pair has a 'timestamp' field (from the user message).
@@ -36,10 +36,10 @@ def get_recent_prompt_completion_pairs(days=30):
         pairs.append(pair)
     return pairs
 
-# 1. Get only recent training data (e.g., last 30 days)
+# 1. Get only recent training data (last 7 days)
 pairs = get_recent_prompt_completion_pairs(days=7)
 if not pairs:
-    logging.info("No training data found.")
+    logging.info("No training data found for the past 7 days.")
     exit(0)
 
 # 2. Write and moderate the training data
