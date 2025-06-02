@@ -37,7 +37,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python fine_tune_job.py
+        run: |
+          python fine_tune_job.py
+          # Ensure the log file is created
+          if [ ! -f fine_tune_job.log ]; then
+            echo "Log file not found. Creating an empty log file." > fine_tune_job.log
+          fi
 
       - name: Upload fine-tune log
         if: always()
