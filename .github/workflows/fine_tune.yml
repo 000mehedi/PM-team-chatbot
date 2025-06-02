@@ -2,7 +2,7 @@ name: Fine Tune AI Nightly
 
 on:
   schedule:
-    - cron: '0 18 * * 5'   # Runs every day at 2am UTC
+    - cron: '0 18 * * 5'   # Every Friday at 18:00 UTC
   workflow_dispatch:       # Allows manual trigger from Actions tab
 
 jobs:
