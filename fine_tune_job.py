@@ -3,6 +3,7 @@ import sys
 import json
 import openai
 import logging
+import time
 from datetime import datetime, timedelta
 
 logging.basicConfig(filename="fine_tune_job.log", level=logging.INFO)
@@ -81,3 +82,21 @@ job = openai.fine_tuning.jobs.create(
     model="gpt-3.5-turbo-0125"
 )
 logging.info(f"Started fine-tuning job: {job.id}")
+
+# 4. Wait for fine-tuning job to complete and save the latest model name
+job_id = job.id
+fine_tuned_model = None
+
+while True:
+    job_status = openai.fine_tuning.jobs.retrieve(job_id)
+    if job_status.status in ["succeeded", "failed", "cancelled"]:
+        fine_tuned_model = job_status.fine_tuned_model
+        break
+    time.sleep(30)  # Wait 30 seconds before checking again
+
+if fine_tuned_model:
+    with open("latest_model_name.txt", "w") as f:
+        f.write(fine_tuned_model)
+    logging.info(f"Saved latest model name: {fine_tuned_model}")
+else:
+    logging.error("Fine-tuned model name not found.")

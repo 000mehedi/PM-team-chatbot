@@ -3,6 +3,13 @@ import os
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+def get_latest_model_name():
+    try:
+        with open("latest_model_name.txt", "r") as f:
+            return f.read().strip()
+    except Exception:
+        return "gpt-3.5-turbo"  # fallback if file not found
+
 def ask_gpt(question, context=""):
     # Detect if the question requires code
     question_lower = question.lower()
@@ -34,8 +41,9 @@ def ask_gpt(question, context=""):
             f'User question: {question}\nAnswer:'
         )
 
+    model_name = get_latest_model_name()
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model=model_name,
         messages=[
             {"role": "system", "content": "You are a helpful assistant for data analysis in Streamlit."},
             {"role": "user", "content": prompt}
