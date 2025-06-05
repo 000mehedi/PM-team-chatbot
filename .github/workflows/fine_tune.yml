@@ -26,3 +26,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python fine_tune_job.py
+      - name: Commit latest model name
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add latest_model_name.txt
+          git commit -m "Update latest fine-tuned model name [skip ci]" || echo "No changes to commit"
+          git push
