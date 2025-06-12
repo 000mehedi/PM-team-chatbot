@@ -15,6 +15,18 @@ def add_user(username: str, password: str, name: str) -> None:
         "name": name
     }).execute()
 
+def get_pm_tasks(pm_code: str):
+    # Query the dictionary table for matching PM code (or pm_name if you want to support that too)
+    # Using ilike allows case-insensitive match and partial matching.
+    query = supabase.table("dictionary") \
+        .select("pm_code, pm_name, sequence, description") \
+        .ilike("pm_code", f"%{pm_code}%") \
+        .execute()
+    if query.error:
+        print("Error:", query.error)
+        return None
+    return query.data
+
 def get_user_by_username(username: str) -> Optional[Dict]:
     res = supabase.table("users").select("*").eq("username", username).execute()
     data = res.data

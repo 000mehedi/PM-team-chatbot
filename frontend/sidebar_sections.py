@@ -5,6 +5,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.utils.db import load_faqs, add_faq, delete_faq, get_all_sessions_analytics
+from backend.utils.ai_chat import ask_gpt
+from chat import load_dictionary_corpus, retrieve_relevant_dictionary
 def show_faqs():
     st.subheader("📌 Frequently Asked Questions")
  
@@ -187,3 +189,14 @@ def show_session_analytics():
         st.write(f"- Last Activity: {a['last_activity']}")
         st.write(f"- Top Topics: {a['top_words']}")
         st.markdown("---")
+
+def show_dictionary_lookup():
+    from backend.utils.ai_chat import ask_gpt  # <-- add this import if not at the top
+    st.header("🔍 Dictionary Lookup")
+    with st.form("dictionary_lookup_form"):
+        user_query = st.text_input("Enter your dictionary query:")
+        submitted = st.form_submit_button("Search")
+    context = ""  # or pass any context you want
+    if submitted and user_query:
+        response = ask_gpt(user_query, context)
+        st.markdown(response)

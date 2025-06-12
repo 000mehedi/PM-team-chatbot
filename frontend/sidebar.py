@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from backend.utils.db import get_all_sessions, delete_session, create_new_session, load_messages_by_session, rename_session
 from sidebar_sections import show_faqs, show_definitions, show_forms_and_docs
+  # make sure these are imported
 
 def full_sidebar():
     st.markdown("# Welcome to PM Bot")
@@ -13,6 +14,8 @@ def full_sidebar():
     forms_and_docs_section()
     ask_a_question_section()
     show_session_analytics()
+ 
+
 
 
 
