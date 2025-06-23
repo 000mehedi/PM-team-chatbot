@@ -191,12 +191,108 @@ def show_session_analytics():
         st.markdown("---")
 
 def show_dictionary_lookup():
-    from backend.utils.ai_chat import ask_gpt  # <-- add this import if not at the top
+    from backend.utils.ai_chat import ask_gpt  # Import if not at the top
+    from backend.utils.supabase_client import supabase  # Import Supabase client
+    import pandas as pd
+    
     st.header("🔍 Dictionary Lookup")
     with st.form("dictionary_lookup_form"):
         user_query = st.text_input("Enter your dictionary query:")
         submitted = st.form_submit_button("Search")
-    context = ""  # or pass any context you want
+    
     if submitted and user_query:
-        response = ask_gpt(user_query, context)
-        st.markdown(response)
+        # First try to get data directly from Supabase
+        results = supabase.table("dictionary").select("*").ilike("pm_name", f"%{user_query}%").execute().data
+        if not results:
+            results = supabase.table("dictionary").select("*").eq("pm_code", user_query).execute().data
+        
+        if results:
+            # Process and display results ourselves
+            pm_code = results[0]["pm_code"]
+            pm_name = results[0]["pm_name"]
+            
+            # Check if we have EAM tasks (look for eam_pm_name or [EAM: in description)
+            has_eam_column = "eam_pm_name" in results[0] if results else False
+            has_eam_tasks = False
+            
+            if has_eam_column:
+                has_eam_tasks = any(row.get("eam_pm_name") is not None for row in results)
+            else:
+                has_eam_tasks = any("[EAM:" in str(row.get("description", "")) for row in results)
+            
+            # Build formatted output
+            output = f"**PM Code:** {pm_code}\n\n**PM Name:** {pm_name}\n\n"
+            
+            if has_eam_tasks:
+                # Current Tasks
+                if has_eam_column:
+                    current_tasks = [r for r in results if not r.get("eam_pm_name")]
+                else:
+                    current_tasks = [r for r in results if "[EAM:" not in str(r.get("description", ""))]
+                
+                output += "**Tasks:**\n\n"
+                if current_tasks:
+                    output += "| sequence | description |\n|----------|-------------|\n"
+                    for task in sorted(current_tasks, key=lambda x: x["sequence"]):
+                        output += f"| {task['sequence']} | {task['description']} |\n"
+                
+                # EAM Tasks
+                if has_eam_column:
+                    eam_tasks = [r for r in results if r.get("eam_pm_name")]
+                else:
+                    eam_tasks = [r for r in results if "[EAM:" in str(r.get("description", ""))]
+                
+                if eam_tasks:
+                    output += "\n**Existing tasks in EAM:**\n\n"
+                    
+                    # Add previous PM name if available
+                    if has_eam_column and eam_tasks[0].get("eam_pm_name"):
+                        output += f"*Previous PM Name: {eam_tasks[0]['eam_pm_name']}*\n\n"
+                    elif not has_eam_column:
+                        for task in eam_tasks:
+                            desc = task.get("description", "")
+                            if "[EAM:" in desc:
+                                eam_name = desc.split("[EAM:")[1].split("]")[0].strip()
+                                output += f"*Previous PM Name: {eam_name}*\n\n"
+                                break
+                    
+                    output += "| sequence | description |\n|----------|-------------|\n"
+                    for task in sorted(eam_tasks, key=lambda x: x["sequence"]):
+                        desc = task["description"]
+                        # Clean up description if it has the EAM marker
+                        if "[EAM:" in desc:
+                            desc = desc.split("]", 1)[1].strip()
+                        output += f"| {task['sequence']} | {desc} |\n"
+            else:
+                # All tasks in one table
+                output += "**Tasks:**\n\n"
+                output += "| sequence | description |\n|----------|-------------|\n"
+                for task in sorted(results, key=lambda x: x["sequence"]):
+                    output += f"| {task['sequence']} | {task['description']} |\n"
+            
+            st.markdown(output)
+        else:
+            # If we don't find a direct match, fall back to ask_gpt
+            context = ""  # or pass any context you want
+            response = ask_gpt(user_query, context)
+            st.markdown(response)
+
+
+
+def show_dashboard():
+    """Dashboard section to view work order analytics"""
+    st.header("Work Orders Dashboard")
+    st.write("View analytics and insights from work order data")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📊 View Latest Dashboard"):
+            st.session_state["current_page"] = "dashboard"
+            st.rerun()
+    
+    with col2:
+        if st.button("🔄 Generate New Dashboard"):
+            st.session_state["current_page"] = "dashboard"
+            st.session_state["generate_new_dashboard"] = True
+            st.rerun()
