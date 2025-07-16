@@ -79,6 +79,35 @@ def get_common_trades():
     # Fallback to minimal list if query fails
     return ["All Trades"]
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_common_zones():
+    """Get zones from the database"""
+    try:
+        # Query for unique zones
+        query = supabase.table("work_orders_history") \
+            .select("zone") \
+            .not_.is_("zone", "null") \
+            .execute()
+        
+        if query.data:
+            # Extract unique zones
+            zones = set()
+            for row in query.data:
+                if row.get("zone") and row["zone"].strip():
+                    zones.add(row["zone"].strip())
+            
+            # Sort and create options list
+            zones_list = sorted(list(zones))
+            
+            # Add "All Zones" at the beginning
+            final_list = ["All Zones"] + zones_list
+            return final_list
+    except Exception as e:
+        print(f"Error getting zone options: {str(e)}")
+    
+    # Fallback to minimal list if query fails
+    return ["All Zones"]
+
 def extract_chart_data(dashboard_content):
     """Extract chart data from dashboard content"""
     try:
@@ -137,8 +166,7 @@ def display_dashboard_page(generate_new=False):
             st.subheader("Custom Filters")
             
             # Date selection type
-# Simplified date selection without the "Specific day" option
-# Date selection type
+            # Simplified date selection without the "Specific day" option
             date_type = st.radio(
                 "Date selection:",
                 ["Quick ranges", "Custom range"]
@@ -203,14 +231,25 @@ def display_dashboard_page(generate_new=False):
                 else:
                     # Normal range - add a day to end date for proper filtering
                     end_date = end_date_display + timedelta(days=1)
-                    st.info(f"This will show data from {start_date.strftime('%Y-%m-%d')} 00:00 to {end_date_display.strftime('%Y-%m-%d')} 23:59")     
+                    st.info(f"This will show data from {start_date.strftime('%Y-%m-%d')} 00:00 to {end_date_display.strftime('%Y-%m-%d')} 23:59")
+                    
             # Building filter
             building_name = st.text_input("Building name (optional)")
             
-            # Trade filter - use dynamic trade options from database
-            trade_options = get_common_trades()
-            trade_filter = st.selectbox("Filter by trade", trade_options)
-            trade = None if trade_filter == "All Trades" else trade_filter
+            # Create two columns for trade and zone filters
+            filter_col1, filter_col2 = st.columns(2)
+            
+            # Trade filter in first column
+            with filter_col1:
+                trade_options = get_common_trades()
+                trade_filter = st.selectbox("Filter by trade", trade_options)
+                trade = None if trade_filter == "All Trades" else trade_filter
+            
+            # Zone filter in second column
+            with filter_col2:
+                zone_options = get_common_zones()
+                zone_filter = st.selectbox("Filter by zone", zone_options)
+                zone = None if zone_filter == "All Zones" else zone_filter
             
             if st.button("Generate Custom Dashboard"):
                 with st.spinner("Generating custom dashboard..."):
@@ -219,7 +258,8 @@ def display_dashboard_page(generate_new=False):
                             start_date=start_date.isoformat(), 
                             end_date=end_date.isoformat(), 
                             building_name=building_name if building_name else None,
-                            trade=trade
+                            trade=trade,
+                            zone=zone  # Add zone parameter
                         )
                         st.session_state['current_dashboard'] = custom_dashboard
                         st.sidebar.success("Custom dashboard generated!")
@@ -628,7 +668,7 @@ def display_dashboard_page(generate_new=False):
                         .gte("date_created", yesterday) \
                         .lt("date_created", today) \
                         .order("date_created", desc=True) \
-                        .limit(10) \
+                        .limit(100) \
                         .execute()
                     
                     critical_wo_df = pd.DataFrame(critical_query.data) if critical_query.data else pd.DataFrame()
@@ -647,9 +687,10 @@ def display_dashboard_page(generate_new=False):
                     start_date = custom_match.group(1)
                     end_date = custom_match.group(2)
                     
-                    # Extract building and trade filters if present
+                    # Extract building, trade, and zone filters if present
                     building_filter = None
                     trade_filter = None
+                    zone_filter = None
                     
                     building_match = re.search(r"Building: ([^|]+)", dashboard_content)
                     if building_match:
@@ -658,6 +699,11 @@ def display_dashboard_page(generate_new=False):
                     trade_match = re.search(r"Trade: ([^|]+?)(?:\||$)", dashboard_content)
                     if trade_match:
                         trade_filter = trade_match.group(1).strip()
+                    
+                    # Add zone filter extraction
+                    zone_match = re.search(r"Zone: ([^|]+?)(?:\||$)", dashboard_content)
+                    if zone_match:
+                        zone_filter = zone_match.group(1).strip()
                     
                     # Build query for critical work orders
                     critical_query = supabase.table("work_orders_history") \
@@ -672,7 +718,11 @@ def display_dashboard_page(generate_new=False):
                     if trade_filter:
                         critical_query = critical_query.eq("trade", trade_filter)
                     
-                    critical_result = critical_query.order("date_created", desc=True).limit(10).execute()
+                    # Apply zone filter to query
+                    if zone_filter:
+                        critical_query = critical_query.eq("zone", zone_filter)
+                    
+                    critical_result = critical_query.order("date_created", desc=True).limit(100).execute()
                     critical_wo_df = pd.DataFrame(critical_result.data) if critical_result.data else pd.DataFrame()
                     
                     if not critical_wo_df.empty:

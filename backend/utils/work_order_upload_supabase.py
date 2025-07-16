@@ -5,7 +5,8 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 # Import supabase client from your module
-from supabase_client import supabase
+from backend.utils.supabase_client import supabase
+import streamlit as st  # Added for Streamlit compatibility
 
 # Load environment variables
 load_dotenv()
@@ -17,9 +18,16 @@ class JSONEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
-def upload_work_orders_to_supabase(excel_file_path: str):
+def upload_work_orders_to_supabase(excel_file_path: str, progress_callback=None):
     """
     Uploads work order data from Excel file to Supabase work_orders_history table
+    
+    Args:
+        excel_file_path: Path to the Excel file containing work order data
+        progress_callback: Optional callback function to update UI progress (for Streamlit)
+    
+    Returns:
+        dict: Summary of the upload operation including counts of records processed
     """
     print(f"Reading data from Excel file: {excel_file_path}")
     
@@ -56,6 +64,14 @@ def upload_work_orders_to_supabase(excel_file_path: str):
     # Rename columns based on the mapping
     df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
     
+    # Check for duplicates in the work_order column and keep only the last occurrence
+    if 'work_order' in df.columns:
+        duplicate_count = df.duplicated('work_order', keep=False).sum()
+        if duplicate_count > 0:
+            print(f"Found {duplicate_count} duplicate work order rows in the input file.")
+            print("Keeping only the last occurrence of each duplicate work order.")
+            df = df.drop_duplicates('work_order', keep='last')
+    
     # Replace all NaN values with None for JSON compatibility
     df = df.replace({np.nan: None})
     
@@ -76,6 +92,8 @@ def upload_work_orders_to_supabase(excel_file_path: str):
     batch_size = 100
     total_batches = (len(records) + batch_size - 1) // batch_size
     success_count = 0
+    updated_count = 0
+    inserted_count = 0
     
     for i in range(0, len(records), batch_size):
         batch = records[i:i+batch_size]
@@ -91,39 +109,62 @@ def upload_work_orders_to_supabase(excel_file_path: str):
                 elif isinstance(value, float) and np.isnan(value):
                     record[key] = None
                 
-                # Convert strings that look like floats to integers for specific fields
-                if key in ['work_order', 'building_id'] and isinstance(value, str) and value.endswith('.0'):
-                    try:
-                        record[key] = int(float(value))
-                    except (ValueError, TypeError):
-                        # If conversion fails, keep the original value
-                        pass
-                
-                # Also check for float values that should be integers
-                if key in ['work_order', 'building_id'] and isinstance(value, float) and value.is_integer():
-                    record[key] = int(value)
+                # Convert work_order and building_id to strings for consistency
+                if key in ['work_order', 'building_id'] and value is not None:
+                    # Handle integer-like floats (e.g. 123.0)
+                    if isinstance(value, (int, float)) and not pd.isna(value):
+                        if float(value).is_integer():
+                            record[key] = str(int(value))
+                        else:
+                            record[key] = str(value)
+                    # Handle strings that look like floats (e.g. "123.0")
+                    elif isinstance(value, str) and value.endswith('.0'):
+                        try:
+                            record[key] = str(int(float(value)))
+                        except (ValueError, TypeError):
+                            pass
         
         print(f"Processing batch {batch_num} of {total_batches}...")
         
         try:
-            # Two-step process: First delete existing records with these work_order values
-            work_orders_to_update = [r['work_order'] for r in batch if r.get('work_order') is not None]
+            # Get work order IDs from this batch
+            work_orders_to_process = [r['work_order'] for r in batch if r.get('work_order') is not None]
             
-            if work_orders_to_update:
-                # Delete in smaller sub-batches to avoid query length limits
-                delete_batch_size = 50
-                for j in range(0, len(work_orders_to_update), delete_batch_size):
-                    delete_batch = work_orders_to_update[j:j+delete_batch_size]
-                    try:
-                        # Delete existing records for these work orders
-                        supabase.table('work_orders_history').delete().in_('work_order', delete_batch).execute()
-                    except Exception as e:
-                        print(f"Warning: Error deleting existing records: {str(e)}")
+            # Check which work orders already exist in the database
+            existing_work_orders = set()
+            if work_orders_to_process:
+                try:
+                    # Query in smaller sub-batches to avoid query length limits
+                    check_batch_size = 50
+                    for j in range(0, len(work_orders_to_process), check_batch_size):
+                        check_batch = work_orders_to_process[j:j+check_batch_size]
+                        query_result = supabase.table('work_orders_history').select('work_order').in_('work_order', check_batch).execute()
+                        if hasattr(query_result, 'data'):
+                            for item in query_result.data:
+                                existing_work_orders.add(str(item['work_order']))
+                except Exception as e:
+                    print(f"Warning: Error checking existing work orders: {str(e)}. Will assume all are new.")
             
-            # Then insert the new records
+            # Delete existing records for these work orders
+            if existing_work_orders:
+                try:
+                    # Delete in smaller sub-batches
+                    delete_batch_size = 50
+                    for j in range(0, len(existing_work_orders), delete_batch_size):
+                        delete_batch = list(existing_work_orders)[j:j+delete_batch_size]
+                        delete_result = supabase.table('work_orders_history').delete().in_('work_order', delete_batch).execute()
+                        updated_count += len(delete_batch)
+                except Exception as e:
+                    print(f"Warning: Error deleting existing records: {str(e)}. Will attempt to insert anyway.")
+            
+            # Insert all records in this batch
             response = supabase.table('work_orders_history').insert(
                 json.loads(json.dumps(batch, cls=JSONEncoder))
             ).execute()
+            
+            # Count inserts (new records) vs updates (deleted then inserted)
+            new_inserts = len(batch) - len(existing_work_orders)
+            inserted_count += new_inserts
             
             # Check for errors in the response
             if hasattr(response, 'error') and response.error:
@@ -132,6 +173,11 @@ def upload_work_orders_to_supabase(excel_file_path: str):
                 processed_count = len(response.data) if hasattr(response, 'data') else len(batch)
                 print(f"Successfully processed batch {batch_num}: {processed_count} records")
                 success_count += processed_count
+                
+            # Update progress if callback is provided
+            if progress_callback:
+                progress = min(1.0, (i + len(batch)) / len(records))
+                progress_callback(progress)
                 
         except Exception as e:
             print(f"Exception in batch {batch_num}: {str(e)}")
@@ -144,7 +190,20 @@ def upload_work_orders_to_supabase(excel_file_path: str):
                 if 'building_id' in record:
                     print(f"Record {idx}, building_id: {record['building_id']}, type: {type(record['building_id'])}")
     
+    # Create summary of results
+    summary = {
+        "total_records": len(records),
+        "processed_records": success_count,
+        "inserted_records": inserted_count,
+        "updated_records": updated_count,
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
     print(f"Upload complete! Successfully processed {success_count} records.")
+    print(f"  - {inserted_count} new records inserted")
+    print(f"  - {updated_count} existing records updated")
+    
+    return summary
 
 if __name__ == "__main__":
     # Use the specific Excel file name: Work.xlsx

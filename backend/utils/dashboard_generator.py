@@ -183,27 +183,77 @@ def generate_insights_from_data(new_wo_df, closed_wo_df, critical_wo_df, total_c
     """
     Uses OpenAI to generate insights from the work order data
     """
-    # Prepare data summaries for OpenAI
-    insights_prompt = "Generate 3-5 key insights from the following work order data from yesterday:\n\n"
+    # Prepare data summaries for OpenAI with more specific guidance
+    insights_prompt = "Analyze this work order data from yesterday and provide 4-5 specific, actionable insights:\n\n"
     
+    # Add more detailed data breakdowns
     if not new_wo_df.empty:
         insights_prompt += f"New Work Orders (Yesterday): {len(new_wo_df)}\n"
+        
+        # Add priority distribution with percentages
         if 'priority' in new_wo_df.columns:
-            priority_counts = new_wo_df['priority'].value_counts().to_dict()
-            insights_prompt += f"Priority distribution: {priority_counts}\n"
+            priority_counts = new_wo_df['priority'].value_counts()
+            priority_pct = (priority_counts / priority_counts.sum() * 100).round(1)
+            priority_data = {k: f"{v} ({priority_pct[k]}%)" for k, v in priority_counts.to_dict().items()}
+            insights_prompt += f"Priority distribution: {priority_data}\n"
+            
+            # Add critical priority percentage
+            critical_keys = [k for k in priority_counts.index if 'critical' in k.lower()]
+            if critical_keys:
+                critical_count = sum(priority_counts.get(k, 0) for k in critical_keys)
+                critical_pct = (critical_count / priority_counts.sum() * 100) if priority_counts.sum() > 0 else 0
+                if critical_pct > 0:
+                    insights_prompt += f"Critical priority percentage: {critical_pct:.1f}%\n"
+        
+        # Add trade breakdown with more details
         if 'trade' in new_wo_df.columns:
             top_trades = new_wo_df['trade'].value_counts().head(5).to_dict()
             insights_prompt += f"Top trades: {top_trades}\n"
+            
+            # Compare to historical averages if available
+            insights_prompt += "Note any trades that seem to have unusual volume compared to typical patterns.\n"
+        
+        # Add building breakdown with more details
         if 'building_name' in new_wo_df.columns:
             top_buildings = new_wo_df['building_name'].value_counts().head(5).to_dict()
             insights_prompt += f"Top buildings: {top_buildings}\n"
+            
+            # Add building-to-work order ratio
+            unique_buildings = new_wo_df['building_name'].nunique()
+            if unique_buildings > 0:
+                insights_prompt += f"Work orders per building ratio: {len(new_wo_df)/unique_buildings:.1f} (across {unique_buildings} buildings)\n"
+            
+        # Add zone analysis if available
+        if 'zone' in new_wo_df.columns:
+            zone_counts = new_wo_df['zone'].value_counts().head(3).to_dict()
+            insights_prompt += f"Top zones: {zone_counts}\n"
     
+    # Add closed work order analysis
     if not closed_wo_df.empty:
         insights_prompt += f"\nClosed Work Orders (Yesterday): {len(closed_wo_df)}\n"
+        
+        # Add closure efficiency metrics
+        if 'date_created' in closed_wo_df.columns and 'date_completed' in closed_wo_df.columns:
+            try:
+                # Calculate average time to close
+                closed_wo_df['date_created'] = pd.to_datetime(closed_wo_df['date_created'])
+                closed_wo_df['date_completed'] = pd.to_datetime(closed_wo_df['date_completed'])
+                closed_wo_df['days_to_close'] = (closed_wo_df['date_completed'] - closed_wo_df['date_created']).dt.total_seconds() / 86400
+                
+                avg_days = closed_wo_df['days_to_close'].mean()
+                median_days = closed_wo_df['days_to_close'].median()
+                
+                insights_prompt += f"Average days to close: {avg_days:.1f} days\n"
+                insights_prompt += f"Median days to close: {median_days:.1f} days\n"
+            except Exception as e:
+                print(f"Error calculating closure metrics: {str(e)}")
+        
+        # Add trade closure rates
         if 'trade' in closed_wo_df.columns:
-            closed_trades = closed_wo_df['trade'].value_counts().head(5).to_dict()
+            closed_trades = closed_wo_df['trade'].value_counts().head(3).to_dict()
             insights_prompt += f"Top trades closing work orders: {closed_trades}\n"
     
+    # Add critical work order analysis
     if not critical_wo_df.empty:
         # If we have the total count, use it
         if total_critical_count and total_critical_count > len(critical_wo_df):
@@ -211,11 +261,33 @@ def generate_insights_from_data(new_wo_df, closed_wo_df, critical_wo_df, total_c
         else:
             insights_prompt += f"\nNew Critical Work Orders (Yesterday): {len(critical_wo_df)}\n"
             
+        # Add status distribution for critical WOs
         if 'status' in critical_wo_df.columns:
             critical_status = critical_wo_df['status'].value_counts().to_dict()
             insights_prompt += f"Status of new critical work orders: {critical_status}\n"
+            
+            # Calculate percentage of critical WOs that are still open
+            open_critical = sum(v for k, v in critical_status.items() if k != 'Closed')
+            if sum(critical_status.values()) > 0:
+                open_pct = (open_critical / sum(critical_status.values())) * 100
+                insights_prompt += f"Percentage of critical WOs still open: {open_pct:.1f}%\n"
+        
+        # Add building and trade analysis for critical WOs
+        if 'building_name' in critical_wo_df.columns:
+            critical_buildings = critical_wo_df['building_name'].value_counts().head(3).to_dict()
+            insights_prompt += f"Buildings with most critical WOs: {critical_buildings}\n"
+        
+        if 'trade' in critical_wo_df.columns:
+            critical_trades = critical_wo_df['trade'].value_counts().head(3).to_dict()
+            insights_prompt += f"Trades with most critical WOs: {critical_trades}\n"
     
-    insights_prompt += "\nProvide concise, actionable insights that help facility managers prioritize work. Format as bullet points."
+    insights_prompt += "\nProvide the following in your response:"
+    insights_prompt += "\n1. Highlight specific patterns, anomalies, or concerning trends"
+    insights_prompt += "\n2. Compare open vs. closed work orders"
+    insights_prompt += "\n3. Note any buildings, trades, or zones that need immediate attention"
+    insights_prompt += "\n4. Suggest specific actions the facilities team should take"
+    insights_prompt += "\n5. Highlight any efficiency issues or resource allocation concerns"
+    insights_prompt += "\nFormat as concise bullet points that facility managers can act upon immediately."
     
     try:
         # Call OpenAI API to generate insights
@@ -223,9 +295,10 @@ def generate_insights_from_data(new_wo_df, closed_wo_df, critical_wo_df, total_c
         response = openai.ChatCompletion.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a facility management data analyst who provides clear, concise insights."},
+                {"role": "system", "content": "You are an expert facility management data analyst who provides specific, actionable insights. Use concrete numbers and percentages when possible. Avoid generic observations. Focus on what the data uniquely reveals about this specific day."},
                 {"role": "user", "content": insights_prompt}
-            ]
+            ],
+            temperature=0.4  # Lower temperature for more focused, less generic responses
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
@@ -278,7 +351,7 @@ def get_latest_dashboard():
         print(f"Error getting latest dashboard: {str(e)}")
         return None
 
-def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, building_name=None, trade=None):
+def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, building_name=None, trade=None, zone=None):
     """
     Generates a custom dashboard with specific filters
     """
@@ -305,6 +378,9 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
     
     if trade:
         filter_description += f" | Trade: {trade}"
+        
+    if zone:
+        filter_description += f" | Zone: {zone}"
     
     print(f"Filters: {filter_description}")
     
@@ -323,6 +399,9 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
     
     if trade:
         count_query = count_query.eq("trade", trade)
+    
+    if zone:
+        count_query = count_query.eq("zone", zone)
         
     # Execute count query
     count_result = count_query.execute()
@@ -359,6 +438,9 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
         
         if trade:
             query = query.eq("trade", trade)
+            
+        if zone:
+            query = query.eq("zone", zone)
         
         # Apply pagination
         result = query.range(offset, offset + batch_size - 1).execute()
@@ -461,6 +543,24 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
                 "data": building_counts
             }
     
+    # Work Orders by Zone - only if zone filter is not applied
+    if not df.empty and 'zone' in df.columns and not zone:
+        zone_counts = df.groupby('zone').size().reset_index(name='count')
+        zone_counts = zone_counts.sort_values('count', ascending=False).head(10).to_dict('records')
+        chart_data["charts"]["zone"] = {
+            "title": f"Top 10 Zones with Work Orders",
+            "data": zone_counts
+        }
+    # If zone filter is applied, still show zone distribution if there are various zones matching the filter
+    elif not df.empty and 'zone' in df.columns and zone:
+        if len(df['zone'].unique()) > 1:
+            zone_counts = df.groupby('zone').size().reset_index(name='count')
+            zone_counts = zone_counts.sort_values('count', ascending=False).head(10).to_dict('records')
+            chart_data["charts"]["zone"] = {
+                "title": f"Zone Distribution for Filter",
+                "data": zone_counts
+            }
+    
     # Status Distribution - always show this
     if not df.empty and 'status' in df.columns:
         status_counts = df.groupby('status').size().reset_index(name='count').to_dict('records')
@@ -475,7 +575,7 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
     
     # Generate insights
     if not df.empty:
-        insights = generate_custom_insights(df, start_date_iso, end_date_iso, building_id, building_name, trade, total_count)
+        insights = generate_custom_insights(df, start_date_iso, end_date_iso, building_id, building_name, trade, zone, total_count)
         dashboard_content += "\n## AI Insights\n\n"
         dashboard_content += insights
         
@@ -633,11 +733,12 @@ def analyze_work_order_topics(df):
             sample_descriptions = descriptions.sample(sample_size).tolist()
             
             ai_prompt = (
-                f"Analyze these {sample_size} work order descriptions to identify common themes, issues, and patterns:\n\n"
+                f"Analyze these {sample_size} work order descriptions to identify specific trends, issues, and patterns:\n\n"
                 + "\n".join([f"- {desc[:150]}..." if len(desc) > 150 else f"- {desc}" for desc in sample_descriptions[:10]])
                 + "\n\n[Additional descriptions omitted for brevity]\n\n"
                 + "Identify 3-4 key insights about the types of issues being reported, potential root causes, "
-                + "or maintenance trends. Format your response as bullet points."
+                + "and recommend specific maintenance actions. Focus on concrete observations unique to this dataset."
+                + "Format your response as bullet points with actionable recommendations."
             )
             
             print("Calling OpenAI API for topic analysis...")
@@ -645,9 +746,10 @@ def analyze_work_order_topics(df):
             response = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
-                    {"role": "system", "content": "You are a facility management analyst who specializes in identifying patterns in work order data."},
+                    {"role": "system", "content": "You are a facility management expert who identifies specific patterns in maintenance requests and recommends actionable solutions. Avoid generic observations and focus on unique aspects of the data provided."},
                     {"role": "user", "content": ai_prompt}
-                ]
+                ],
+                temperature=0.4
             )
             
             ai_analysis = response.choices[0].message.content.strip()
@@ -666,12 +768,13 @@ def analyze_work_order_topics(df):
         result += "* For more detailed insights, consider generating a dashboard with a wider date range.\n\n"
     
     return result
-def generate_custom_insights(df, start_date, end_date, building_id=None, building_name=None, trade=None, total_count=None):
+
+def generate_custom_insights(df, start_date, end_date, building_id=None, building_name=None, trade=None, zone=None, total_count=None):
     """
-    Generates insights for a custom dashboard
+    Generates insights for a custom dashboard with more specific, actionable content
     """
-    # Format dataframe information as a prompt
-    insights_prompt = f"Generate 3-5 key insights from work order data with the following characteristics:\n\n"
+    # Format dataframe information as a prompt with enhanced guidance
+    insights_prompt = f"Generate 5 specific, data-driven insights from this facilities work order data:\n\n"
     insights_prompt += f"Date range: {start_date} to {end_date}\n"
     
     if total_count and total_count > len(df):
@@ -679,44 +782,176 @@ def generate_custom_insights(df, start_date, end_date, building_id=None, buildin
     else:
         insights_prompt += f"Total work orders: {len(df)}\n"
     
+    # Add filter context
+    filters_applied = []
     if building_id:
-        insights_prompt += f"Building ID filter: {building_id}\n"
-    
+        filters_applied.append(f"Building ID: {building_id}")
     if building_name:
-        insights_prompt += f"Building name filter: {building_name}\n"
-    
+        filters_applied.append(f"Building name: {building_name}")
     if trade:
-        insights_prompt += f"Trade filter: {trade}\n"
+        filters_applied.append(f"Trade: {trade}")
+    if zone:
+        filters_applied.append(f"Zone: {zone}")
     
-    # Add statistical summaries
+    if filters_applied:
+        insights_prompt += f"Filters applied: {', '.join(filters_applied)}\n\n"
+    
+    # Add statistical summaries with more detail
     if 'priority' in df.columns:
-        priority_counts = df['priority'].value_counts().to_dict()
-        insights_prompt += f"Priority distribution: {priority_counts}\n"
+        priority_counts = df['priority'].value_counts()
+        if not priority_counts.empty:
+            priority_pct = (priority_counts / priority_counts.sum() * 100).round(1)
+            priority_data = {k: f"{v} ({priority_pct[k]}%)" for k, v in priority_counts.to_dict().items()}
+            insights_prompt += f"Priority distribution: {priority_data}\n"
+            
+            # Calculate critical percentage
+            critical_keys = [k for k in priority_counts.index if 'critical' in str(k).lower()]
+            if critical_keys:
+                critical_count = sum(priority_counts.get(k, 0) for k in critical_keys)
+                if priority_counts.sum() > 0:
+                    critical_pct = (critical_count / priority_counts.sum() * 100)
+                    if critical_pct > 0:
+                        insights_prompt += f"Critical priority percentage: {critical_pct:.1f}%\n"
     
     if 'status' in df.columns:
-        status_counts = df['status'].value_counts().to_dict()
-        insights_prompt += f"Status distribution: {status_counts}\n"
+        status_counts = df['status'].value_counts()
+        if not status_counts.empty:
+            status_pct = (status_counts / status_counts.sum() * 100).round(1)
+            status_data = {k: f"{v} ({status_pct[k]}%)" for k, v in status_counts.to_dict().items()}
+            insights_prompt += f"Status distribution: {status_data}\n"
+            
+            # Calculate completion rate
+            completed = status_counts.get('Closed', 0) + status_counts.get('Completed', 0)
+            if status_counts.sum() > 0:
+                completion_rate = (completed / status_counts.sum() * 100)
+                insights_prompt += f"Work order completion rate: {completion_rate:.1f}%\n"
     
+    # Add age analysis if date fields are available
+    if 'date_created' in df.columns:
+        try:
+            df['date_created'] = pd.to_datetime(df['date_created'])
+            current_date = pd.to_datetime('today')
+            
+            # Calculate age of open work orders
+            if 'status' in df.columns:
+                open_wo = df[df['status'] != 'Closed']
+                if not open_wo.empty:
+                    open_wo['age_days'] = (current_date - open_wo['date_created']).dt.total_seconds() / 86400
+                    avg_age = open_wo['age_days'].mean()
+                    median_age = open_wo['age_days'].median()
+                    max_age = open_wo['age_days'].max()
+                    
+                    insights_prompt += f"Open work order age stats: Avg {avg_age:.1f} days, Median {median_age:.1f} days, Max {max_age:.1f} days\n"
+                    
+                    # Age distribution buckets
+                    age_buckets = [
+                        (open_wo['age_days'] <= 7).sum(),  # 0-7 days
+                        ((open_wo['age_days'] > 7) & (open_wo['age_days'] <= 30)).sum(),  # 7-30 days
+                        ((open_wo['age_days'] > 30) & (open_wo['age_days'] <= 90)).sum(),  # 30-90 days
+                        (open_wo['age_days'] > 90).sum(),  # >90 days
+                    ]
+                    
+                    insights_prompt += f"Age distribution: 0-7 days: {age_buckets[0]}, 7-30 days: {age_buckets[1]}, 30-90 days: {age_buckets[2]}, >90 days: {age_buckets[3]}\n"
+        except Exception as e:
+            print(f"Error calculating age metrics: {str(e)}")
+    
+    # Add trade analysis if not filtered by trade
     if 'trade' in df.columns and not trade:
         top_trades = df['trade'].value_counts().head(5).to_dict()
         insights_prompt += f"Top trades: {top_trades}\n"
+        
+        # Trade-specific metrics
+        if 'status' in df.columns and len(df['trade'].unique()) > 1:
+            try:
+                trade_completion = df[df['status'] == 'Closed'].groupby('trade').size()
+                trade_total = df.groupby('trade').size()
+                # Only calculate rates for trades with data
+                valid_trades = set(trade_completion.index).intersection(set(trade_total.index))
+                if valid_trades:
+                    trade_completion_rates = (trade_completion.loc[list(valid_trades)] / trade_total.loc[list(valid_trades)] * 100).fillna(0)
+                    if not trade_completion_rates.empty:
+                        top_completion_rates = trade_completion_rates.sort_values(ascending=False).head(3)
+                        bottom_completion_rates = trade_completion_rates.sort_values().head(3)
+                        
+                        insights_prompt += f"Top 3 trades by completion rate: {top_completion_rates.to_dict()}\n"
+                        insights_prompt += f"Bottom 3 trades by completion rate: {bottom_completion_rates.to_dict()}\n"
+            except Exception as e:
+                print(f"Error calculating trade completion rates: {str(e)}")
     
+    # Add building analysis if not filtered by building
     if 'building_name' in df.columns and not building_id and not building_name:
         top_buildings = df['building_name'].value_counts().head(5).to_dict()
         insights_prompt += f"Top buildings: {top_buildings}\n"
+        
+        # Building efficiency metrics
+        if 'status' in df.columns and len(df['building_name'].unique()) > 1:
+            try:
+                building_wo_counts = df.groupby('building_name').size()
+                building_completion = df[df['status'] == 'Closed'].groupby('building_name').size()
+                
+                # Only calculate for buildings that have both data points
+                common_buildings = set(building_wo_counts.index).intersection(set(building_completion.index))
+                if common_buildings:
+                    filtered_counts = building_wo_counts.loc[list(common_buildings)]
+                    filtered_completions = building_completion.loc[list(common_buildings)]
+                    building_completion_rates = (filtered_completions / filtered_counts * 100).fillna(0)
+                    
+                    # Identify buildings with high workload and low completion rates
+                    if not building_completion_rates.empty and len(building_completion_rates) > 2:
+                        high_volume_buildings = filtered_counts[filtered_counts > filtered_counts.median()].index
+                        problem_buildings = building_completion_rates[building_completion_rates < 50].index
+                        
+                        high_volume_low_completion = set(high_volume_buildings).intersection(set(problem_buildings))
+                        if high_volume_low_completion:
+                            insights_prompt += f"Buildings with high volume and low completion rates: {list(high_volume_low_completion)[:3]}\n"
+            except Exception as e:
+                print(f"Error calculating building metrics: {str(e)}")
     
-    insights_prompt += "\nProvide concise, actionable insights focused on trends, anomalies, and recommendations."
-    insights_prompt += "\nFormat as bullet points for readability."
+    # Add zone analysis if not filtered by zone
+    if 'zone' in df.columns and not zone:
+        top_zones = df['zone'].value_counts().head(5).to_dict()
+        insights_prompt += f"Top zones: {top_zones}\n"
+        
+        # Zone metrics if available
+        if 'priority' in df.columns and len(df['zone'].unique()) > 1 and 'zone' in df.columns:
+            try:
+                # Find rows with critical priority across all zones
+                critical_mask = df['priority'].str.contains('critical', case=False, na=False)
+                if critical_mask.any():
+                    zone_critical_counts = df[critical_mask].groupby('zone').size()
+                    zone_total_counts = df.groupby('zone').size()
+                    
+                    # Only calculate for zones with both data points
+                    common_zones = set(zone_critical_counts.index).intersection(set(zone_total_counts.index))
+                    if common_zones:
+                        valid_critical = zone_critical_counts.loc[list(common_zones)]
+                        valid_totals = zone_total_counts.loc[list(common_zones)]
+                        zone_critical_rates = (valid_critical / valid_totals * 100).fillna(0)
+                        
+                        if not zone_critical_rates.empty:
+                            highest_critical_zones = zone_critical_rates.sort_values(ascending=False).head(3)
+                            insights_prompt += f"Zones with highest percentage of critical work orders: {highest_critical_zones.to_dict()}\n"
+            except Exception as e:
+                print(f"Error calculating zone metrics: {str(e)}")
+    
+    insights_prompt += "\nBased on this data, provide 5 specific insights that would be valuable to facilities managers:"
+    insights_prompt += "\n1. Highlight specific patterns or trends that stand out in this dataset"
+    insights_prompt += "\n2. Identify specific buildings, zones, or trades requiring immediate attention"
+    insights_prompt += "\n3. Note any efficiency issues or resource allocation concerns"
+    insights_prompt += "\n4. Compare metrics against expected benchmarks (e.g., completion rates, age of open WOs)"
+    insights_prompt += "\n5. Recommend 2-3 specific, actionable steps for facilities management"
+    insights_prompt += "\nUse concrete numbers, percentages, and specifics from the data. Avoid generic observations."
     
     try:
-        # Call OpenAI API to generate insights
+        # Call OpenAI API to generate insights with lower temperature for more focused results
         model_name = get_latest_model_name()
         response = openai.ChatCompletion.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a facility management data analyst who provides clear, concise insights."},
+                {"role": "system", "content": "You are an expert facilities management consultant who provides specific, data-driven insights. Focus on patterns unique to this dataset, highlight anomalies, and provide actionable recommendations. Use concrete metrics and avoid generic advice."},
                 {"role": "user", "content": insights_prompt}
-            ]
+            ],
+            temperature=0.4  # Lower temperature for more focused insights
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
