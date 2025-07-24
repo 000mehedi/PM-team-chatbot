@@ -14,4 +14,4 @@ response = (
     .lt("scheduled_start_date", "today")
     .execute()
 )
-print(f"Deleted {len(response.data)} old future PMs")
+print(f"Deleted {response['count']} old future PMs")
