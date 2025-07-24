@@ -1,0 +1,27 @@
+name: Cleanup Old Future PMs
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Runs daily at 2 AM UTC
+  workflow_dispatch:      # <-- Add this line to enable manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install supabase
+
+      - name: Run cleanup script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/cleanup_future_pm.py
