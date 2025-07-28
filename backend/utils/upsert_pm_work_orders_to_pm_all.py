@@ -42,6 +42,7 @@ def upsert_pm_work_orders_to_pm_all():
     # Upsert in batches for efficiency
     for i in range(0, len(work_orders), page_size):
         batch = work_orders[i:i+page_size]
+        print(f"Processing batch {i // page_size + 1} ({len(batch)} records)...")
         for wo in batch:
             wo_id = wo.get("work_order")
             if wo_id not in existing_ids:
@@ -73,5 +74,6 @@ def upsert_pm_work_orders_to_pm_all():
             } for wo in batch
         ], on_conflict="work_order_id").execute()
 
+    print(f"Total work orders processed: {len(work_orders)}")
     print(f"New rows added: {new_count}")
     print(f"Rows updated: {update_count}")
