@@ -12,12 +12,22 @@ def upsert_pm_work_orders_to_pm_all():
     response = supabase.table('pm_work_orders').select('*').execute()
     work_orders = response.data if response.data else []
 
+    # Fetch existing work_order_ids from pm_all
+    existing_response = supabase.table('pm_all').select('work_order_id').execute()
+    existing_ids = set(row['work_order_id'] for row in existing_response.data if row.get('work_order_id'))
+
+    new_count = 0
+    update_count = 0
+
     for wo in work_orders:
-        # Upsert each work order into pm_all
-        # You must have a unique constraint on work_order_id in pm_all
+        wo_id = wo.get("work_order")
+        if wo_id not in existing_ids:
+            new_count += 1
+        else:
+            update_count += 1
         supabase.table('pm_all').upsert([{
             "selected": True,
-            "work_order_id": wo.get("work_order"),
+            "work_order_id": wo_id,
             "wo_type": wo.get("wo_type"),
             "status": wo.get("status"),
             "equipment": wo.get("equipment"),
@@ -37,6 +47,9 @@ def upsert_pm_work_orders_to_pm_all():
             "date_created": wo.get("date_created"),
             "region": wo.get("region")
         }], on_conflict="work_order_id").execute()
+
+    print(f"New rows added: {new_count}")
+    print(f"Rows updated: {update_count}")
 
 if __name__ == "__main__":
     upsert_pm_work_orders_to_pm_all()
