@@ -1,0 +1,27 @@
+name: Upsert PM Work Orders to PM All
+
+on:
+  schedule:
+    - cron: '0 11 * * *' # Runs every day at 6pm UTC
+  workflow_dispatch:
+
+jobs:
+  upsert:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install supabase
+
+      - name: Run upsert script
+        run: python backend/utils/upsert_pm_work_orders_to_pm_all.py
