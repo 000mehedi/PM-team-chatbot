@@ -2,7 +2,7 @@ name: Cleanup PM All Table
 
 on:
   schedule:
-    - cron: '0 11 * * *' # Runs every day at 3am UTC
+    - cron: '0 7 * * *' # Runs every day at 7am UTC
   workflow_dispatch:
 
 jobs:

@@ -2,7 +2,7 @@ name: Upsert PM Work Orders to PM All
 
 on:
   schedule:
-    - cron: '0 11 * * *' # Runs every day at 6pm UTC
+    - cron: '0 7 * * *' # Runs every day at 7am UTC
   workflow_dispatch:
 
 jobs:
