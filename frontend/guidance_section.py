@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import requests
 from dotenv import load_dotenv
-from st_aggrid import AgGrid, GridOptionsBuilder
 from urllib.parse import urlparse
 
 load_dotenv()
@@ -59,39 +58,9 @@ def show_guidance_section():
         }
     )
 
-    gb = GridOptionsBuilder.from_dataframe(display_df)
-    gb.configure_column(
-        "Reference",
-        autoHeight=True,
-        cellRenderer="""
-        function(params) {
-            if (params.value && params.value.startsWith('<a ')) {
-                var span = document.createElement('span');
-                span.innerHTML = params.value;
-                // Make sure the link is clickable
-                var links = span.getElementsByTagName('a');
-                for (var i = 0; i < links.length; i++) {
-                    links[i].onclick = function(e) {
-                        e.stopPropagation();
-                    };
-                }
-                return span;
-            }
-            return params.value;
-        }
-        """
-    )
-    gridOptions = gb.build()
 
     st.write("### Results")
-    AgGrid(
-        display_df,
-        gridOptions=gridOptions,
-        enable_enterprise_modules=False,
-        allow_unsafe_jscode=True,
-        height=400,
-        fit_columns_on_grid_load=True
-    )
+    st.dataframe(display_df, use_container_width=True)
 
 def show_best_practices_section():
     # Place back button in a small column at the top-left
