@@ -8,7 +8,7 @@ from backend.utils.db import get_all_sessions, delete_session, create_new_sessio
 from frontend.guidance_section import show_guidance_section, show_best_practices_section
 
 def full_sidebar():
-
+    st.markdown("# Preventive Maintenance")
     
     # Check if user is admin
     user_email = st.session_state.get("email", "").lower()
