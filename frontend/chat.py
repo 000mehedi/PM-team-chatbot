@@ -1,5 +1,6 @@
 import streamlit as st
 import re
+import json
 from backend.utils.ai_chat import ask_gpt
 from backend.utils.db import save_message, get_user_memory, update_user_memory
 from backend.utils.faq_semantics import get_faq_match
@@ -7,6 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from backend.utils.supabase_client import supabase
+from frontend.process_maps import display_pdf_from_data, display_pdf_from_url
 
 def load_dictionary_corpus():
     response = supabase.table("dictionary").select("sequence, description").execute()
@@ -76,18 +78,49 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None, dictionary_c
         if msg["role"] == "user":
             st.markdown(f"<div class='user-msg'>🧑‍💼 You:<br>{msg['content']}</div>", unsafe_allow_html=True)
         else:
-            code_blocks = re.findall(r"```(?:python)?\s*([\s\S]*?)```", msg["content"])
-            non_code_text = re.sub(r"```(?:python)?\s*[\s\S]*?```", "", msg["content"]).strip()
-            if non_code_text:
-                st.markdown(f"<div class='bot-msg'>🤖 PM Bot:<br>{non_code_text}</div>", unsafe_allow_html=True)
-            for i, code in enumerate(code_blocks):
-                context_vars = {"df": uploaded_df} if uploaded_df is not None else {}
-                with st.expander(f"🔧 Show code block {i+1}", expanded=False):
-                    st.code(code, language="python")
-                    df_preview = run_ai_response(code, context_vars)
-                    if df_preview is not None:
-                        st.info("Preview of resulting DataFrame:")
-                        st.dataframe(df_preview.head(10))
+            # Check if this is a structured response with process maps
+            if isinstance(msg["content"], dict) and msg["content"].get("type") == "process_maps":
+                process_map_response = msg["content"]
+                # Display the intro message
+                st.markdown(f"<div class='bot-msg'>🤖 PM Bot:<br>{process_map_response['message']}</div>", unsafe_allow_html=True)
+                
+                # Display each process map in an expander
+                for i, result in enumerate(process_map_response.get("results", []), 1):
+                    with st.expander(f"{i}. {result.get('title', 'Untitled')}"):
+                        if result.get('description'):
+                            st.write(result.get('description'))
+                        
+                        # Display the PDF based on available data
+                        if result.get('file_data'):
+                            display_pdf_from_data(result['file_data'], result['title'])
+                        elif result.get('pdf_data'):
+                            display_pdf_from_data(result['pdf_data'], result['title'])
+                        elif result.get('file_url'):
+                            display_pdf_from_url(result['file_url'], result['title'])
+                        else:
+                            st.warning("No document content available.")
+                            
+            elif isinstance(msg["content"], str) and msg["content"].startswith("**Here are relevant regulations/bylaws:**"):
+                # Parse and render as cards (optional)
+                for line in msg["content"].split("\n"):
+                    if line.startswith("- **"):
+                        st.markdown(f"<div style='border-left:4px solid #2b8ae2;padding:8px 0 8px 12px;margin-bottom:8px;background:#fafdff;'>{line[2:]}</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(line)
+            else:
+                # Regular text message handling
+                code_blocks = re.findall(r"```(?:python)?\s*([\s\S]*?)```", msg["content"])
+                non_code_text = re.sub(r"```(?:python)?\s*[\s\S]*?```", "", msg["content"]).strip()
+                if non_code_text:
+                    st.markdown(f"<div class='bot-msg'>🤖 PM Bot:<br>{non_code_text}</div>", unsafe_allow_html=True)
+                for i, code in enumerate(code_blocks):
+                    context_vars = {"df": uploaded_df} if uploaded_df is not None else {}
+                    with st.expander(f"🔧 Show code block {i+1}", expanded=False):
+                        st.code(code, language="python")
+                        df_preview = run_ai_response(code, context_vars)
+                        if df_preview is not None:
+                            st.info("Preview of resulting DataFrame:")
+                            st.dataframe(df_preview.head(10))
 
     session_id = st.session_state.get("selected_session", "default_session")
     prompt_key = f"chat_input_{session_id}"
@@ -153,11 +186,23 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None, dictionary_c
             full_prompt = memory + f"\nUser: {prompt}\nBot:"
             response = ask_gpt(prompt, context=context)
 
+        # Save to session state and database (handle both string and dict responses)
         st.session_state.messages.append({"role": "assistant", "content": response})
-        save_message(session_id, "assistant", response)
+        
+        # For database storage, convert dict to JSON string if needed
+        if isinstance(response, dict):
+            save_message(session_id, "assistant", json.dumps(response))
+        else:
+            save_message(session_id, "assistant", response)
 
         if memory_enabled and user_id:
-            updated_memory = memory + f"\nUser: {prompt}\nBot: {response}\n"
+            # For memory, only store the message text or a summary of structured content
+            if isinstance(response, dict) and response.get("type") == "process_maps":
+                memory_text = f"I found {len(response.get('results', []))} process maps related to your query."
+            else:
+                memory_text = response
+            
+            updated_memory = memory + f"\nUser: {prompt}\nBot: {memory_text}\n"
             update_user_memory(user_id, updated_memory)
 
         st.rerun()
@@ -167,7 +212,21 @@ def chat_interface(uploaded_df=None, faqs_context="", faqs_df=None, dictionary_c
         chat_lines = []
         for msg in st.session_state.messages:
             role = "You" if msg["role"] == "user" else "PM Bot"
-            chat_lines.append(f"{role}: {msg['content']}\n")
+            
+            # Handle dict content for export
+            content = msg["content"]
+            if isinstance(content, dict) and content.get("type") == "process_maps":
+                export_content = content.get("message", "")
+                # Add titles of process maps
+                for i, result in enumerate(content.get("results", []), 1):
+                    export_content += f"\n{i}. {result.get('title', 'Untitled')}"
+                    if result.get('description'):
+                        export_content += f" - {result.get('description')[:50]}..."
+            else:
+                export_content = content
+                
+            chat_lines.append(f"{role}: {export_content}\n")
+            
         chat_text = header + "\n".join(chat_lines)
         st.download_button(
             label="⬇️ Download Chat History",

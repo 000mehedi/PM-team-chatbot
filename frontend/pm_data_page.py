@@ -51,18 +51,9 @@ def show_pm_data_page():
     with col2:
         st.title("Preventive Maintenance Data")
     
-    # Create tabs and put all content within each tab's context manager
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📅 Future PMs", "🔍 Data Explorer"])
-    
-    # The selected tab index is automatically managed by Streamlit
-    with tab1:
-        display_dashboard_tab()
-    
-    with tab2:
-        display_future_pms_tab()
+    # Only show the Future PMs tab with integrated dashboard dropdown
+    display_future_pms_tab()
         
-    with tab3:
-        display_data_explorer_tab()
 
 def display_dashboard_tab():
     """Handle dashboard tab separately to avoid rerunning when other tabs are active"""
@@ -303,9 +294,14 @@ def display_dashboard_tab():
 
 
 def display_future_pms_tab():
-    """Handle future PMs tab separately"""
+    """Handle future PMs tab - only Calendar View (simplified)"""
+    # PMs by Building Bar Chart
+    # The following block should only run if future_metrics is defined, but future_metrics is only available after data is loaded below.
+    # So, this block should be moved or guarded appropriately if needed.
     st.subheader("Future PM Schedule")
-    
+
+
+
     # Initialize filter values in session state if not present
     if "future_filter_values" not in st.session_state:
         today = datetime.now()
@@ -317,15 +313,12 @@ def display_future_pms_tab():
             "status": None,
             "region": None
         }
-    
+
     # Add filters for the Future PMs tab
     with st.expander("Filter Options", expanded=True):
-        # Use form to prevent automatic rerunning on input change
         with st.form("future_pm_filters"):
-            # Date filters
             col1, col2 = st.columns(2)
             today = datetime.now()
-            
             with col1:
                 cal_start_date = st.date_input(
                     "Start Date:", 
@@ -340,10 +333,7 @@ def display_future_pms_tab():
                     if st.session_state["future_filter_values"]["end_date"] else today + timedelta(days=90),
                     key="cal_end_date_input"
                 )
-            
-            # Building, Status, Zone filters
             col1, col2, col3 = st.columns(3)
-            
             with col1:
                 future_building = st.text_input(
                     "Building:", 
@@ -351,7 +341,6 @@ def display_future_pms_tab():
                     placeholder="Enter building name or ID", 
                     key="future_building_input"
                 )
-            
             with col2:
                 status_options = ["Assigned", "Open", "Cancelled", "Closed", "Waiting on Invoice", 
                                  "Work Complete", "No Resources", "PM Follow-up"]
@@ -361,8 +350,6 @@ def display_future_pms_tab():
                     default=st.session_state["future_filter_values"]["status"] or [],
                     key="future_status_input"
                 )
-            
-            # Use cached zones
             with col3:
                 zone_options = get_cached_zones()
                 selected_zone = st.session_state["future_filter_values"]["zone"]
@@ -373,8 +360,6 @@ def display_future_pms_tab():
                     index=zone_index,
                     key="future_zone_input"
                 )
-            
-            # Use cached regions
             region_options = get_cached_regions()
             selected_region = st.session_state["future_filter_values"]["region"]
             region_index = region_options.index(selected_region) if selected_region in region_options else 0
@@ -384,11 +369,21 @@ def display_future_pms_tab():
                 index=region_index,
                 key="future_region_input"
             )
-            
-            # Submit button within the form
+            try:
+                from backend.utils.pm_wo_retrieval import get_distinct_organizations
+                organization_options = ["All"] + get_distinct_organizations()
+            except Exception:
+                organization_options = ["All", "FM", "PK", "FI", "RC", "CP"]
+
+            selected_organization = st.session_state["future_filter_values"].get("organization") or "All"
+            org_index = organization_options.index(selected_organization) if selected_organization in organization_options else 0
+            future_organization = st.selectbox(
+                "Organization:",
+                organization_options,
+                index=org_index,
+                key="future_organization_input"
+            )
             submit_pressed = st.form_submit_button("Apply Calendar Filters", type="primary", use_container_width=True)
-            
-            # Only update filters and trigger data reload when button is pressed
             if submit_pressed:
                 st.session_state["future_filters_applied"] = True
                 st.session_state["future_filter_values"] = {
@@ -397,23 +392,14 @@ def display_future_pms_tab():
                     "building": future_building if future_building else None,
                     "zone": None if future_zone == "All Zones" else future_zone,
                     "status": None if not future_status else future_status,
-                    "region": None if future_region == "All Regions" else future_region
+                    "region": None if future_region == "All Regions" else future_region,
+                    "organization": None if future_organization == "All" else future_organization
                 }
-                # Clear cached calendar data to force refresh
                 if "future_calendar_cache" in st.session_state:
                     del st.session_state["future_calendar_cache"]
     
-    # Only load data if filters have been applied
     if st.session_state.get("future_filters_applied", False):
-        # Add a refresh button
-        if st.button("🔄 Refresh Calendar Data", key="refresh_calendar"):
-            if "future_calendar_cache" in st.session_state:
-                del st.session_state["future_calendar_cache"]
-            st.rerun()
-            
-        # Check if calendar data is cached
         if "future_calendar_cache" not in st.session_state:
-            # Get saved filter values
             saved_filters = st.session_state.get("future_filter_values", {})
             start_date_str = saved_filters.get("start_date")
             end_date_str = saved_filters.get("end_date")
@@ -421,333 +407,73 @@ def display_future_pms_tab():
             zone = saved_filters.get("zone")
             region = saved_filters.get("region")
             status = saved_filters.get("status")
-            
-            # Display loading spinner while getting data
-            with st.spinner("Loading PM calendar data..."):
+            with st.spinner("Loading PM calendar data and dashboard metrics..."):
                 try:
                     from backend.utils.pm_wo_retrieval import get_pm_calendar_data
-                    
-                    try:
-                        # Get calendar-formatted data
-                        calendar_data = get_pm_calendar_data(
-                            start_date=start_date_str,
-                            end_date=end_date_str,
-                            building=building,
-                            region=region,
-                            zone=zone,
-                            status=status
-                        )
-                        
-                        # Also get metrics data for scheduling recommendations
-                        future_metrics = get_pm_metrics(
-                            start_date=datetime.now().strftime('%Y-%m-%d'),
-                            end_date=end_date_str,
-                            building=building,
-                            region=region,
-                            zone=zone
-                        )
-                        
-                        # Cache the data
-                        st.session_state["future_calendar_cache"] = {
-                            "calendar_data": calendar_data,
-                            "metrics": future_metrics
-                        }
-                        
-                    except TypeError as e:
-                        st.warning(f"API compatibility issue: {str(e)}")
-                        # Fallback to basic metrics
-                        future_metrics = get_pm_metrics(
-                            start_date=datetime.now().strftime('%Y-%m-%d'),
-                            end_date=end_date_str,
-                            building=building,
-                            region=region
-                        )
-                        
-                        # Create placeholder calendar data
-                        calendar_data = {
-                            "events": [],
-                            "past_due": [],
-                            "future": [],
-                            "stats": {
-                                "total": future_metrics.get("total_pms", 0),
-                                "past_due": future_metrics.get("overdue_pms", 0),
-                                "today": 0, "future": 0,
-                                "completed": future_metrics.get("completed_pms", 0)
-                            }
-                        }
-                        
-                        # Cache the fallback data
-                        st.session_state["future_calendar_cache"] = {
-                            "calendar_data": calendar_data,
-                            "metrics": future_metrics
-                        }
-                        
-                except ImportError:
-                    st.warning("Calendar view requires the latest backend. Using standard metrics.")
-                    # Fall back to basic metrics
-                    future_metrics = get_pm_metrics(
-                        start_date=datetime.now().strftime('%Y-%m-%d'),
+                    calendar_data = get_pm_calendar_data(
+                        start_date=start_date_str,
                         end_date=end_date_str,
                         building=building,
-                        region=region
+                        region=region,
+                        zone=zone,
+                        status=status,
+                        organization=saved_filters.get("organization")
                     )
-                    
-                    # Create placeholder calendar data
-                    calendar_data = {
-                        "events": [],
-                        "past_due": [],
-                        "future": [],
-                        "stats": {
-                            "total": future_metrics.get("total_pms", 0),
-                            "past_due": future_metrics.get("overdue_pms", 0),
-                            "today": 0, "future": 0, 
-                            "completed": future_metrics.get("completed_pms", 0)
-                        }
-                    }
-                    
-                    # Cache the fallback data
+                    from backend.utils.pm_wo_retrieval import get_pm_metrics
+                    future_metrics = get_pm_metrics(
+                        start_date=start_date_str,
+                        end_date=end_date_str,
+                        building=building,
+                        region=region,
+                        zone=zone,
+                        status=status,
+                        organization=saved_filters.get("organization")
+                    )
                     st.session_state["future_calendar_cache"] = {
                         "calendar_data": calendar_data,
                         "metrics": future_metrics
                     }
+                except Exception as e:
+                    st.error(f"Error loading calendar data: {e}")
+                    return
         else:
-            # Use cached data
             cached_data = st.session_state["future_calendar_cache"]
             calendar_data = cached_data["calendar_data"]
             future_metrics = cached_data["metrics"]
-        
-        # Create tabs for the future PM section
-        future_tabs = st.tabs(["Calendar View", "Schedule Recommendations", "Past Due PMs"])
-        
-        with future_tabs[0]:
-            # Call custom calendar view with the cached calendar data
-            display_pm_calendar_view(future_metrics, calendar_data)
-            
-        with future_tabs[1]:
-            # Show recommendations from cached data
-            display_scheduling_recommendations(future_metrics)
-        
-        with future_tabs[2]:
-            # Show past due PMs from cached data
-            if calendar_data and "past_due" in calendar_data and calendar_data["past_due"]:
-                # Display past due data
-                st.warning(f"⚠️ **ATTENTION NEEDED: {len(calendar_data['past_due'])} Past Due PMs**")
-                
-                # Convert to DataFrame for display
-                past_due_df = pd.DataFrame([
-                    {
-                        "equipment": event["extendedProps"]["equipment"],
-                        "building": event["extendedProps"]["building"],
-                        "days_overdue": abs(event["extendedProps"]["days_from_today"]),
-                        "scheduled_date": event["start"],
-                        "trade": event["extendedProps"].get("trade", ""),
-                        "description": event["extendedProps"].get("description", "")
-                    }
-                    for event in calendar_data["past_due"]
-                ])
-                
-                # Sort by days overdue (most overdue first)
-                past_due_df = past_due_df.sort_values("days_overdue", ascending=False)
-                
-                # Format and display the past due items
-                display_cols = ["equipment", "building", "days_overdue", "scheduled_date", "trade"]
-                
-                # Display table with highlighting
-                st.dataframe(
-                    past_due_df[display_cols],
-                    use_container_width=True
-                )
-                
-                # Add action buttons for past due PMs
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        "Export Past Due List",
-                        data=past_due_df.to_csv(index=False),
-                        file_name=f"past_due_pms_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                with col2:
-                    st.button("Schedule Focus Day", use_container_width=True)
-            else:
-                st.success("No past due PMs! 🎉")
-    else:
-        # Show prompt message if no filters applied yet
-        st.info("👆 Select filter options above and click 'Apply Calendar Filters' to view future PM data.")
 
-
-def display_data_explorer_tab():
-    """Handle data explorer tab separately"""
-    st.subheader("PM Data Explorer")
+        # Only show Calendar View
+        display_pm_calendar_view(future_metrics, calendar_data)
     
-    # More comprehensive filtering options for data explorer
-    with st.form("explorer_filters"):
-        col1, col2 = st.columns(2)
-        with col1:
-            explorer_start_date = st.date_input("Start Date:", datetime.now() - timedelta(days=30), key="pm_explorer_start")
-        with col2:
-            explorer_end_date = st.date_input("End Date:", datetime.now(), key="pm_explorer_end")
-            
-        # Additional filters - Add zone filter too
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            explorer_status = st.selectbox("Status:", ["All", "Scheduled", "Completed", "In Progress", "Overdue"], key="pm_explorer_status")
-        with col2:
-            explorer_frequency = st.selectbox("Frequency:", ["All", "Monthly", "Quarterly", "Semi-Annual", "Annual"], key="pm_explorer_freq")
-        with col3:
-            explorer_building = st.text_input("Building:", placeholder="Enter building name or ID", key="pm_explorer_building")
-            
-        # Add zone and region filters in another row
-        col1, col2 = st.columns(2)
-        with col1:
-            # Use cached zones
-            explorer_zone = st.selectbox("Zone:", get_cached_zones(), key="pm_explorer_zone")
-        
-        with col2:
-            # Use cached regions
-            explorer_region = st.selectbox("Region:", get_cached_regions(), key="pm_explorer_region")
-        
-        # Add the "Show all records" checkbox
-        show_all_records = st.checkbox("Show all records (may be slow for large datasets)", key="show_all_records")
-        
-        # Create a search button within the form
-        search_clicked = st.form_submit_button("Search PM Data", type="primary", use_container_width=True)
-    
-    # Create a container for the data
-    data_container = st.container()
-    
-    # Only perform search if button clicked or we have cached results
-    if search_clicked:
-        # Clear cached results to get fresh data
-        if "explorer_data_cache" in st.session_state:
-            del st.session_state["explorer_data_cache"]
-            
-        try:
-            # Display loading message
-            with st.spinner("Searching PM data..."):
-                # Prepare filter parameters
-                status = explorer_status if explorer_status != "All" else None
-                frequency = explorer_frequency if explorer_frequency != "All" else None
-                building = explorer_building if explorer_building else None
-                region = explorer_region if explorer_region != "All Regions" else None
-                zone = explorer_zone if explorer_zone != "All Zones" else None
-                
-                # Format dates for the query
-                start_date_str = explorer_start_date.strftime('%Y-%m-%d')
-                end_date_str = explorer_end_date.strftime('%Y-%m-%d')
-                
-                # Get PM data based on filters - try with zone first
-                try:
-                    pm_data = get_pm_data(
-                        start_date=start_date_str,
-                        end_date=end_date_str,
-                        status=status,
-                        building=building,
-                        region=region,
-                        zone=zone,
-                        frequency=frequency,
-                        limit=0 if show_all_records else 10000
-                    )
-                except TypeError as e:
-                    if "unexpected keyword argument 'zone'" in str(e):
-                        # Fall back to version without zone parameter
-                        pm_data = get_pm_data(
-                            start_date=start_date_str,
-                            end_date=end_date_str,
-                            status=status,
-                            building=building,
-                            region=region,
-                            frequency=frequency,
-                            limit=0 if show_all_records else 10000
-                        )
-                        if zone:
-                            st.warning(f"Zone filter '{zone}' was ignored. The backend API doesn't support filtering by zone yet.")
+        # Show dashboard metrics at the bottom of the page in a dropdown
+        st.markdown("---")
+        with st.expander("Show Preventive Maintenance Dashboard", expanded=False):
+            st.subheader("Preventive Maintenance Dashboard")
+            # Show total number of work orders
+            total_wos = 0
+            if future_metrics:
+                if "pm_data" in future_metrics and future_metrics["pm_data"]:
+                    pm_df = pd.DataFrame(future_metrics["pm_data"])
+                    if "work_order" in pm_df.columns:
+                        total_wos = pm_df["work_order"].nunique()
+                    elif "work_order_id" in pm_df.columns:
+                        total_wos = pm_df["work_order_id"].nunique()
                     else:
-                        # If it's a different TypeError, re-raise it
-                        raise e
-                
-                # Cache the results
-                st.session_state["explorer_data_cache"] = pm_data
-                
-        except Exception as e:
-            st.error(f"Error retrieving PM data: {str(e)}")
-            st.info("Please check your database connection and try again.")
-            
-    # Display cached results if available
-    if "explorer_data_cache" in st.session_state:
-        pm_data = st.session_state["explorer_data_cache"]
-        
-        # Display the data table
-        with data_container:
-            if not pm_data.empty:
-                st.subheader(f"PM Work Orders ({len(pm_data)} records)")
-                
-                # Format date columns for display
-                display_df = pm_data.copy()
-                
-                # Clean work order numbers - remove .0 from the end
-                if 'work_order' in display_df.columns:
-                    display_df['work_order'] = display_df['work_order'].astype(str).apply(lambda x: x[:-2] if x.endswith('.0') else x)
-                
-                # Format date columns
-                date_cols = ['scheduled_start_date', 'date_completed', 'date_created']
-                for col in date_cols:
-                    if col in display_df.columns:
-                        display_df[col] = pd.to_datetime(display_df[col]).dt.strftime('%Y-%m-%d')
-                
-                # Select important columns for display
-                display_cols = [
-                    'work_order', 'status', 'equipment',
-                    'building_name', 'scheduled_start_date', 'date_completed',
-                    'assigned_to', 'pm_code', 'description'
-                ]
-                
-                # Add zone to display columns if it exists
-                if 'zone' in display_df.columns:
-                    display_cols.insert(5, 'zone')
-                
-                # Only show columns that exist in the dataframe
-                display_cols = [col for col in display_cols if col in display_df.columns]
-                
-                st.dataframe(
-                    display_df[display_cols].sort_values(by='scheduled_start_date', ascending=False),
-                    use_container_width=True
-                )
-                
-                # Export options
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        "Download as CSV",
-                        data=display_df.to_csv(index=False),
-                        file_name=f"pm_data_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                with col2:
-                    try:
-                        # Excel export
-                        buffer = BytesIO()
-                        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                            display_df.to_excel(writer, index=False, sheet_name='PM Data')
-                            
-                        st.download_button(
-                            "Download as Excel",
-                            data=buffer.getvalue(),
-                            file_name=f"pm_data_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.ms-excel",
-                            use_container_width=True
-                        )
-                    except:
-                        st.warning("Excel export unavailable. Install xlsxwriter with 'pip install xlsxwriter'")
-            else:
-                st.warning("No PM data found matching your search criteria.")
-    else:
-        # Show instructions before search
-        with data_container:
-            st.info("Select your search criteria and click 'Search PM Data' to view results.")
+                        total_wos = len(pm_df)
+                elif "total_pms" in future_metrics:
+                    total_wos = future_metrics["total_pms"]
+            st.markdown(f"**Total Work Orders:** {total_wos}")
+            display_status_distribution(future_metrics)
 
+            # PMs by Building Bar Chart (Top 10)
+            if future_metrics and "pm_data" in future_metrics and future_metrics["pm_data"]:
+                pm_df = pd.DataFrame(future_metrics["pm_data"])
+                if "building_name" in pm_df.columns:
+                    st.markdown("#### PMs by Building (Top 10)")
+                    building_counts = pm_df["building_name"].value_counts().head(10).reset_index()
+                    building_counts.columns = ["Building", "Count"]
+                    st.bar_chart(building_counts.set_index("Building"))
+    else:
+        st.info("👆 Select filter options above and click 'Apply Calendar Filters' to view future PM data.")
 
 def ensure_required_metrics(metrics):
     """Ensure all required fields exist in the metrics dictionary"""
@@ -964,7 +690,7 @@ def show_pm_data_upload():
                                         - Records inserted: {summary["inserted_records"]}
                                         - Records updated: {summary["updated_records"]}
                                         - Processing time: {summary["timestamp"]}
-                                        - Target table: pm_work_orders
+                                    
                                         """)
                                     else:
                                         st.error("No records were successfully processed.")

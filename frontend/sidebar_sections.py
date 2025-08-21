@@ -99,11 +99,6 @@ def show_definitions(def_df):
                 for _, row in groups[label].iterrows():
                     st.write(f"**{row['Term']}**: {row['Definition']}")
 
-def show_forms_and_docs(links_df):
-    st.subheader("📎 Reference Links")
-    for _, row in links_df.iterrows():
-        st.markdown(f"- [{row['Resource']}]({row['Link']})")
-
 
 
 def show_user_feedback():

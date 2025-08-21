@@ -2,8 +2,11 @@ import openai
 import os
 import re
 import pandas as pd
+import base64
 from datetime import datetime, timedelta
 from backend.utils.supabase_client import supabase
+from frontend.guidance_section import get_guidance_results, get_best_practices_results
+
 from .dashboard_generator import (
     generate_daily_dashboard,
     get_latest_dashboard,
@@ -150,8 +153,124 @@ def get_pm_metrics_summary(building=None, zone=None, region=None):
             "completion_rate": 0
         }
 
+def search_process_maps(query, limit=3):
+    """Search process maps based on keywords"""
+    try:
+        # First search by title (most relevant)
+        title_query = supabase.table("process_maps") \
+            .select("*") \
+            .ilike("title", f"%{query}%") \
+            .limit(limit) \
+            .execute()
+            
+        results = title_query.data
+        
+        # If we don't have enough results, search by description
+        if len(results) < limit:
+            desc_query = supabase.table("process_maps") \
+                .select("*") \
+                .ilike("description", f"%{query}%") \
+                .not_.in_("id", [item["id"] for item in results]) \
+                .limit(limit - len(results)) \
+                .execute()
+            
+            results.extend(desc_query.data)
+            
+        # If we still don't have enough, search by category
+        if len(results) < limit:
+            cat_query = supabase.table("process_maps") \
+                .select("*") \
+                .ilike("category", f"%{query}%") \
+                .not_.in_("id", [item["id"] for item in results]) \
+                .limit(limit - len(results)) \
+                .execute()
+                
+            results.extend(cat_query.data)
+            
+        return results
+    except Exception as e:
+        print(f"Error searching process maps: {str(e)}")
+        return []
+
+def get_process_map_by_id(map_id):
+    """Get a specific process map by ID"""
+    try:
+        response = supabase.table("process_maps").select("*").eq("id", map_id).execute()
+        if response.data:
+            return response.data[0]
+        return None
+    except Exception as e:
+        print(f"Error fetching process map by ID: {e}")
+        return None
+    
+GUIDANCE_KEYWORDS = ["regulation", "bylaw", "code", "legal requirement"]
+BEST_PRACTICE_KEYWORDS = ["best practice", "oem manual", "manual", "procedure", "recommendation", "standard", "maintenance tip"]
+
 def ask_gpt(question, context=""):
     question_lower = question.lower()
+        # Guidance/Regulation queries
+    if any(kw in question_lower for kw in GUIDANCE_KEYWORDS):
+        results = get_guidance_results(question_lower, limit=3)
+        if results:
+            response = "**Here are relevant regulations/bylaws:**\n\n"
+            for r in results:
+                response += f"- **{r['Equipment']}** ({r['Regulation/Code']}): {r['Reference']}\n"
+            response += "\nFor more, visit the Regulations & Bylaws section."
+            return response
+
+    # Best practices queries
+    if any(kw in question_lower for kw in BEST_PRACTICE_KEYWORDS):
+        results = get_best_practices_results(question_lower, limit=3)
+        if results:
+            response = "**Here are some best practices from trusted sources:**\n\n"
+            for r in results:
+                response += f"- [{r['title']}]({r['link']}) ({r['domain']})\n"
+            response += "\nFor more, visit the Best Practices section."
+            return response
+
+    
+    # PROCESS MAPS QUERIES - Moved to top priority and enhanced
+    if any(phrase in question_lower for phrase in [
+        "process map", "workflow", "procedure", "flow chart", "diagram",
+        "process diagram", "work order flow", "steps for", "process for",
+        "how do i", "how to", "procedure for", "what's the process",
+        "show me process", "get process", "find process", "display process",
+        "need the process", "want the process"
+    ]):
+        search_terms = question_lower
+        
+        # Extract the specific terms from the request
+        for phrase in ["process map for", "workflow for", "procedure for", "steps for", 
+                       "how do i", "how to", "what's the process for", "show me process for",
+                       "show me the", "display the", "open the", "view the", 
+                       "can you show me", "i want to see", "pull up the", "find the",
+                       "get the", "process for"]:
+            if phrase in question_lower:
+                search_terms = question_lower.split(phrase, 1)[1].strip()
+                break
+        
+        # Clean up search terms
+        for term in ["process map", "workflow", "procedure", "diagram", "please", "thanks", "?"]:
+            search_terms = search_terms.replace(term, "").strip()
+        
+        # Search for relevant process maps
+        results = search_process_maps(search_terms)
+        
+        if results:
+            # Always return the structured response with PDFs for process map queries
+            return {
+                "type": "process_maps",
+                "message": f"Here are the process maps related to your query:",
+                "results": results
+            }
+        else:
+            # If no results, still return a structured response but with empty results
+            return {
+                "type": "process_maps",
+                "message": f"I couldn't find any process maps related to '{search_terms}'. Please try different keywords or check with your administrator.",
+                "results": []
+            }
+    
     # Handle work order summary requests
     if any(phrase in question_lower for phrase in [
         "summary of yesterday", "yesterday's work order", "summary of work orders",
@@ -442,31 +561,52 @@ def ask_gpt(question, context=""):
     needs_code = any(kw in question_lower for kw in [
         "visualize", "chart", "graph", "plot", "draw", "bar chart", "line chart", "heatmap", "generate code"
     ])
-    work_orders_context = "The system includes two main data types:\n\n"
-    work_orders_context += "1. WORK ORDERS with these fields:\n"
-    work_orders_context += "- work_order: unique identifier for the work order\n"
-    work_orders_context += "- status: current status (Open, Closed, In Progress, etc.)\n"
-    work_orders_context += "- priority: priority level (Critical, High, Medium, Low)\n"
-    work_orders_context += "- building_name: name of the building\n"
-    work_orders_context += "- building_id: unique identifier for the building\n"
-    work_orders_context += "- description: description of the work needed\n"
-    work_orders_context += "- equipment: equipment involved\n"
-    work_orders_context += "- scheduled_start_date: when work is scheduled to start\n"
-    work_orders_context += "- date_completed: when work was completed\n"
-    work_orders_context += "- trade: trade responsible for the work\n\n"
-    work_orders_context += "2. PREVENTIVE MAINTENANCE (PM) WORK ORDERS with these fields:\n"
-    work_orders_context += "- work_order: unique identifier for the PM work order\n"
-    work_orders_context += "- status: current status (Open, Closed, Complete, etc.)\n"
-    work_orders_context += "- building_name: name of the building\n"
-    work_orders_context += "- zone: geographic zone (NORTH, SOUTH, CENTER)\n"
-    work_orders_context += "- region: region name\n"
-    work_orders_context += "- equipment: equipment being maintained\n"
-    work_orders_context += "- description: description of the maintenance task\n"
-    work_orders_context += "- scheduled_start_date: when maintenance is scheduled\n"
-    work_orders_context += "- date_completed: when maintenance was completed\n"
-    work_orders_context += "- trade: trade responsible for the maintenance\n"
-    work_orders_context += "- pm_code: code identifying the type of PM\n\n"
-    context = work_orders_context + context
+
+    work_orders_context = (
+        "The system includes two main data types:\n\n"
+        "1. WORK ORDERS with these fields:\n"
+        "- work_order: unique identifier for the work order\n"
+        "- status: current status (Open, Closed, In Progress, etc.)\n"
+        "- priority: priority level (Critical, High, Medium, Low)\n"
+        "- building_name: name of the building\n"
+        "- building_id: unique identifier for the building\n"
+        "- description: description of the work needed\n"
+        "- equipment: equipment involved\n"
+        "- scheduled_start_date: when work is scheduled to start\n"
+        "- date_completed: when work was completed\n"
+        "- trade: trade responsible for the work\n\n"
+        "2. PREVENTIVE MAINTENANCE (PM) WORK ORDERS with these fields:\n"
+        "- work_order: unique identifier for the PM work order\n"
+        "- status: current status (Open, Closed, Complete, etc.)\n"
+        "- building_name: name of the building\n"
+        "- zone: geographic zone (NORTH, SOUTH, CENTER)\n"
+        "- region: region name\n"
+        "- equipment: equipment being maintained\n"
+        "- description: description of the maintenance task\n"
+        "- scheduled_start_date: when maintenance is scheduled\n"
+        "- date_completed: when maintenance was completed\n"
+        "- trade: trade responsible for the maintenance\n"
+        "- pm_code: code identifying the type of PM\n\n"
+        "3. PROCESS MAPS with these fields:\n"
+        "- title: name of the process map\n"
+        "- category: category the process map belongs to\n"
+        "- description: detailed description of what the process map covers\n"
+        "- file_data: the actual PDF content\n\n"
+    )
+
+    # --- Context Limiting Logic ---
+    # Only add the large context if code/data analysis is needed
+    if needs_code:
+        context = work_orders_context + context
+        # Truncate context if too long
+        if isinstance(context, str) and len(context) > 3000:
+            context = context[:3000] + "\n...[truncated]..."
+    else:
+        # For plain Q&A, keep context minimal
+        if isinstance(context, str) and len(context) > 1000:
+            context = context[:1000] + "\n...[truncated]..."
+        # Do NOT add the large work_orders_context for simple Q&A
+
     if needs_code:
         prompt = (
             'You are a Streamlit data assistant.\n'
@@ -497,12 +637,15 @@ def ask_gpt(question, context=""):
             '- Be clear, conversational, and helpful\n'
             'Answer:'
         )
-    model_name = get_latest_model_name()
+    # Force use of gpt-3.5-turbo for speed, set max_tokens and temperature for faster, more focused responses
     response = openai.ChatCompletion.create(
-        model=model_name,
+        model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful maintenance assistant for facilities management. Always explain causes and provide solutions or recommendations, not just direct answers. Do not provide code unless requested."},
             {"role": "user", "content": prompt}
-        ]
-        )
+        ],
+        max_tokens=512,
+        temperature=0.3,
+        response_format={"type": "text"}
+    )
     return response.choices[0].message.content.strip()

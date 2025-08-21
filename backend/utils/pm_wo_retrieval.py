@@ -1,12 +1,13 @@
 import os
+from openai import organization
 from supabase import create_client
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
+from backend.utils.status_colors import get_status_color
 
-from frontend.pm_schedule_viewer import get_status_color
 def get_supabase_client():
     """Returns a configured Supabase client"""
     supabase_url = os.environ.get("SUPABASE_URL")
@@ -169,19 +170,19 @@ def get_pm_data(start_date=None, end_date=None, status=None, building=None,
         supabase = get_supabase_client()
         
         # Start the query
-        query = supabase.table('pm_work_orders').select('*')
+        query = supabase.table('pm_all').select('*')
         
         # Apply date filters - check scheduled_start_date is within range
         # Also check if dates are provided
         if start_date:
             # Use a range query with gte (greater than or equal)
-            query = query.gte('date_created', start_date)
+            query = query.gte('scheduled_start_date', start_date)
             
         if end_date:
             # Use a range query with lte (less than or equal)
             # Add 1 day to include the end date fully
             next_day = (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-            query = query.lt('date_created', next_day)
+            query = query.lt('scheduled_start_date', next_day)
             
         # Apply other filters
         if status and status != "All":
@@ -284,6 +285,85 @@ def get_pm_data(start_date=None, end_date=None, status=None, building=None,
         print(f"Error retrieving PM data: {str(e)}")
         raise
 
+def get_pm_all_calendar_data(start_date=None, end_date=None, building=None, region=None, zone=None, status=None):
+    """
+    Get ALL PM data from pm_all table formatted for calendar views, with pagination.
+    """
+    try:
+        today = datetime.now()
+        if not start_date:
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        if not end_date:
+            end_date = (today + timedelta(days=90)).strftime('%Y-%m-%d')
+
+        supabase = get_supabase_client()
+        query = supabase.table('pm_all').select('*')
+        query = query.gte('scheduled_start_date', start_date).lte('scheduled_start_date', end_date)
+
+        if building:
+            query = query.ilike('building_name', f'%{building}%')
+        if region:
+            query = query.eq('region', region)
+        if zone:
+            query = query.eq('zone', zone)
+        if status:
+            query = query.eq('status', status)
+
+        # Pagination: fetch all records in batches of 1000
+        all_data = []
+        page_size = 1000
+        page = 0
+        while True:
+            page_query = query.range(page * page_size, (page + 1) * page_size - 1)
+            response = page_query.order('scheduled_start_date').execute()
+            if not response.data:
+                break
+            all_data.extend(response.data)
+            if len(response.data) < page_size:
+                break
+            page += 1
+
+        df = pd.DataFrame(all_data) if all_data else pd.DataFrame()
+
+        # Convert dates
+        if 'scheduled_start_date' in df.columns:
+            df['scheduled_start_date'] = pd.to_datetime(df['scheduled_start_date'], errors='coerce')
+
+            events = []
+            for _, row in df.iterrows():
+                date_val = row.get('scheduled_start_date')
+                if pd.isnull(date_val):
+                    continue
+                description = row.get('description', 'PM Task')
+                building_name = row.get('building_name', '')
+                title = f"{description} @ {building_name}"
+                event = {
+                    "title": title,
+                    "start": date_val.strftime('%Y-%m-%d'),
+                    "color": "#2196F3" if row.get('selected', True) else "#FF33F5",
+                    "textColor": "#FFFFFF",
+                    "extendedProps": {
+                        "equipment": row.get('equipment', ''),
+                        "building": building_name,
+                        "status": row.get('status', ''),
+                        "work_order": row.get('work_order_id', ''),
+                        "description": description,
+                        "pm_code": row.get('pm_code', ''),
+                        "selected": row.get('selected', True)
+                    }
+                }
+                events.append(event)
+
+        return {
+            "events": events,
+            "stats": {
+                "total": len(events)
+            }
+        }
+    except Exception as e:
+        print(f"Error getting pm_all calendar data: {str(e)}")
+        return {"events": [], "stats": {"total": 0}}
+    
 def get_monthly_trend(df):
     """Get monthly trend data with all status types"""
     if 'scheduled_start_date' not in df.columns or df.empty:
@@ -398,8 +478,140 @@ def detect_pm_anomalies(df):
         
     return anomalies
 
+
+def get_future_pm_data(days_ahead=90, equipment_filter=None):
+    """
+    Get data from future_pm table for calendar visualization
+    
+    Args:
+        days_ahead (int): Number of days ahead to look for scheduled PMs
+        equipment_filter (str): Filter by equipment description (optional)
+    
+    Returns:
+        pd.DataFrame: DataFrame containing future PM data
+    """
+    try:
+        # Calculate date range
+        today = datetime.now().date()
+        end_date = (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+        today_str = today.strftime('%Y-%m-%d')
+        
+        # Connect to Supabase
+        supabase = get_supabase_client()
+        
+        # Build query
+        query = supabase.table("future_pm").select("*")
+        
+        # Add date filter
+        query = query.gte('scheduled_start_date', today_str) \
+                     .lte('scheduled_start_date', end_date)
+        
+        # Add equipment filter if provided
+        if equipment_filter:
+            query = query.ilike('equipment_description', f'%{equipment_filter}%')
+            
+        # Execute query
+        response = query.order('scheduled_start_date', asc=True).execute()
+            
+        if not response.data:
+            print("No future PM data found")
+            return pd.DataFrame()
+            
+        df = pd.DataFrame(response.data)
+        
+        # Convert scheduled_start_date to datetime
+        if 'scheduled_start_date' in df.columns:
+            df['scheduled_start_date'] = pd.to_datetime(df['scheduled_start_date'])
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error getting future PM data: {str(e)}")
+        return pd.DataFrame()
+    
+
+
+def get_distinct_organizations():
+    try:
+        supabase = get_supabase_client()
+        response = supabase.table("pm_all").select("organization").execute()
+        orgs = set()
+        for item in response.data:
+            if item.get("organization"):
+                orgs.add(item["organization"])
+        return sorted(list(orgs))
+    except Exception as e:
+        print(f"Error getting distinct organizations: {e}")
+        return []
+    
+def create_future_pm_calendar_events(df):
+    """
+    Format future PM data for calendar display
+    """
+    if df.empty:
+        return []
+        
+    calendar_events = []
+    
+    for _, row in df.iterrows():
+        # Get data from row
+        scheduled_date = row['scheduled_start_date']
+        equipment = row.get('equipment', 'Equipment')
+        description = row.get('description', 'PM Task')
+        status = row.get('status', '')
+        equipment_desc = row.get('equipment_description', '')
+        
+        # Set color based on PM type
+        pm_type = row.get('pm_type', '')
+        if pm_type == 'D':  # Daily
+            color = "#4287f5"  # Lighter blue
+        elif pm_type == 'W':  # Weekly
+            color = "#1e56b0"  # Medium blue
+        elif pm_type == 'M':  # Monthly
+            color = "#0a2f6c"  # Darker blue
+        else:
+            color = "#007bff"  # Default blue
+        
+        # Create title with future indicator
+        title = f"⏰ {description if description else equipment}"
+        
+        # Create description with details
+        detail_items = [
+            ('Equipment', equipment),
+            ('Equipment Description', equipment_desc),
+            ('Description', description),
+            ('Status', status),
+            ('PM Code', row.get('pm_code', '')),
+            ('PM Type', row.get('pm_type', '')),
+            ('Work Order', row.get('work_order_id', '')),
+            ('Source', 'Future PM')
+        ]
+        
+        html_description = "".join([f"<b>{label}:</b> {value}<br>" for label, value in detail_items if value])
+        
+        # Create event
+        event = {
+            "title": title,
+            "start": scheduled_date.strftime('%Y-%m-%d'),
+            "color": color,
+            "textColor": "#FFFFFF",  # White text for better contrast
+            "extendedProps": {
+                "equipment": equipment,
+                "equipment_description": equipment_desc,
+                "description": html_description,
+                "status": status,
+                "work_order": row.get('work_order_id', ''),
+                "pm_code": row.get('pm_code', ''),
+                "source": "future_pm"
+            }
+        }
+        
+        calendar_events.append(event)
+        
+    return calendar_events
 # Add this new function after get_scheduling_recommendations
-def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=None, zone=None, status=None):
+def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=None, zone=None, status=None, organization=None):
+
     """
     Get PM data formatted for calendar views, separating past due and future PMs
     
@@ -421,28 +633,22 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
         if not start_date:
             start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
         if not end_date:
-            # Default to 3 months from today
             end_date = (today + timedelta(days=90)).strftime('%Y-%m-%d')
             
         # Get PM data for the date range - handle status properly
         if status:
             # For multi-select case (status is a list)
             if isinstance(status, list) and status:
-                # Use the get_pm_data function's custom query logic
-                # We'll build a custom filter for the status list
                 df = get_pm_data(
                     start_date=start_date, 
                     end_date=end_date, 
                     building=building, 
                     region=region, 
                     zone=zone,
-                    # Don't pass status here - we'll handle multiple statuses below
                     limit=0
                 )
-                
                 # Filter by the list of statuses after getting the data
                 if not df.empty:
-                    # Convert all to lowercase for case-insensitive comparison
                     df['status_lower'] = df['status'].astype(str).str.lower()
                     status_lower = [s.lower() for s in status]
                     df = df[df['status_lower'].isin(status_lower)]
@@ -467,7 +673,11 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
                 zone=zone,
                 limit=0
             )
-        
+
+        # --- ORGANIZATION FILTER ---
+        if organization:
+            df = df[df["organization"] == organization]
+
         if df.empty:
             return {
                 "events": [],
@@ -491,7 +701,6 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
         
         # Ensure date_created is available and in datetime format
         if 'date_created' not in df.columns:
-            # If date_created is not available, fall back to scheduled_start_date
             df['date_created'] = df['scheduled_start_date']
         else:
             df['date_created'] = pd.to_datetime(df['date_created'])
@@ -520,44 +729,22 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
         }
         
         for _, row in df.iterrows():
-            # Determine if past due, today, or future
             is_past_due = past_due_mask.iloc[_] if isinstance(_, int) and _ < len(past_due_mask) else False
             is_today = today_mask.iloc[_] if isinstance(_, int) and _ < len(today_mask) else False
             is_future = future_mask.iloc[_] if isinstance(_, int) and _ < len(future_mask) else False
             is_completed = completed_mask.iloc[_] if isinstance(_, int) and _ < len(completed_mask) else False
             
-            # Get status from row
             status_value = row.get('status', '')
-            
-            # Use the get_status_color function to determine color based on status
             color = get_status_color(status_value)
-            
-            # Determine text color based on status for better contrast
             status_lower = str(status_value).lower()
-            if status_lower in ["waiting on invoice", "waiting for po", "waiting for parts", "open", "due today"]:
-                textColor = "#000000"  # Black text for light backgrounds
-            else:
-                textColor = "#FFFFFF"  # White text for dark backgrounds
-                
-            # Calculate days from today - using date_created instead
+            textColor = "#000000" if status_lower in ["waiting on invoice", "waiting for po", "waiting for parts", "open", "due today"] else "#FFFFFF"
             days_from_today = (row['date_created'] - today).days
-            days_label = f"{abs(days_from_today)} days {'overdue' if days_from_today < 0 else 'from now'}"
-            if days_from_today == 0:
-                days_label = "Today"
-                
-            # Create event title
             equipment = row.get('equipment', 'Equipment')
             building = row.get('building_name', 'Building')
             description = row.get('description', 'Description')
-            
             title = f"{description} @ {building}"
-            
-            # Create description with details
             description_parts = []
-            
-            # Add important fields to description
             important_fields = [
-              
                 ('Building', building),
                 ('Equipment', equipment),
                 ('Status', status_value),
@@ -565,19 +752,14 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
                 ('Trade', row.get('trade', '')),
                 ('Service Category', row.get('service_category', '')),
                 ('Description', row.get('description', '')),
-               
             ]
-            
             for label, value in important_fields:
                 if value and str(value).strip():
                     description_parts.append(f"<b>{label}:</b> {value}<br>")
-                    
             description = "".join(description_parts)
-            
-            # Create the calendar event - using date_created instead
             event = {
                 "title": title,
-                "start": row['date_created'].strftime('%Y-%m-%d'),
+                "start": row['scheduled_start_date'].strftime('%Y-%m-%d'),
                 "color": color,
                 "textColor": textColor,
                 "extendedProps": {
@@ -587,18 +769,15 @@ def get_pm_calendar_data(start_date=None, end_date=None, building=None, region=N
                     "description": description,
                     "trade": row.get('trade', ''),
                     "service_category": row.get('service_category', ''),
-                    "work_order": row.get('work_order', ''),
+                    "work_order": row.get('work_order_id', ''),
                     "days_from_today": days_from_today,
                     "is_past_due": is_past_due,
-                    "is_today": is_today,
+                    "is_today": is_today, 
                     "is_future": is_future,
                     "is_completed": is_completed
                 }
             }
-            
-            # Add to appropriate lists
             calendar_events.append(event)
-            
             if is_past_due:
                 past_due_events.append(event)
             elif is_future or is_today:
@@ -1027,7 +1206,7 @@ def get_scheduling_recommendations(df, look_ahead_days=30):
         print(f"Error generating scheduling recommendations: {str(e)}")
         return {"error": str(e), "this_week": [], "next_week": [], "later": [], "all": []}
     
-def get_pm_metrics(start_date=None, end_date=None, building=None, region=None, zone=None):
+def get_pm_metrics(start_date=None, end_date=None, building=None, region=None, zone=None, status=None, organization=None):
     """
     Calculates PM completion metrics
     
@@ -1050,7 +1229,15 @@ def get_pm_metrics(start_date=None, end_date=None, building=None, region=None, z
             
         # Get filtered data - use unlimited records for accurate metrics
         df = get_pm_data(start_date=start_date, end_date=end_date, 
-                         building=building, region=region, zone=zone, limit=0)
+                 building=building, region=region, zone=zone, limit=0)
+        if organization:
+            df = df[df["organization"] == organization]
+        # Filter by status if provided
+        if status:
+            if isinstance(status, list):
+                df = df[df["status"].isin(status)]
+            else:
+                df = df[df["status"] == status]
         
         if df.empty:
             return {

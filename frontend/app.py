@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(layout="wide")
 import pandas as pd
 from io import BytesIO, StringIO
 import sys, os
@@ -11,7 +12,7 @@ from styles import inject_styles
 from auth import auth_sidebar
 from sidebar import chat_sessions_sidebar, full_sidebar
 from chat import chat_interface, load_dictionary_corpus
-from sidebar_sections import show_faqs, show_definitions, show_forms_and_docs, show_user_feedback, show_session_analytics, show_dictionary_lookup, show_dashboard
+from sidebar_sections import show_faqs, show_definitions, show_user_feedback, show_session_analytics, show_dictionary_lookup, show_dashboard
 from manual_lookup import show_manual_lookup
 from frontend.dashboard_viewer import display_dashboard_page
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -21,6 +22,8 @@ from backend.utils.pm_wo_retrieval import get_pm_data, get_pm_metrics
 from backend.utils.pm_work_order_upload_supabase import upload_pm_data_to_supabase
 from pm_schedule_viewer import display_scheduling_recommendations, display_pm_schedule_planner, display_pm_calendar_view, display_status_distribution
 from pm_schedule_viewer import organize_pm_data_in_tabs
+from frontend.process_maps import process_maps_page
+from frontend.guidance_section import show_guidance_section
 
 from pm_data_page import show_pm_data_page, show_pm_data_upload
 # Initialize session state for page navigation
@@ -80,9 +83,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
     
     if current_page == "dashboard":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -96,9 +99,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "chat":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -146,9 +149,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
             
     elif current_page == "faqs":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to Dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -158,9 +161,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "dictionary":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to Dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -168,23 +171,12 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
         show_dictionary_lookup()
             
-    elif current_page == "forms":
-        # Add back button
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            if st.button("< Back", use_container_width=True):
-                st.session_state["current_page"] = "main"
-                st.rerun()
-        with col2:
-            st.title("Forms & Documents")
-            
-        show_forms_and_docs(links)
-        
+
     elif current_page == "manual_lookup":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to Dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -206,9 +198,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "analytics":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to Dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -218,9 +210,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "dictionary_lookup":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", help="Back to Dashboard", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -238,9 +230,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                 st.rerun()
         else:
             # Add back button
-            col1, col2 = st.columns([1, 5])
+            col1, col2 = st.columns([1, 10])
             with col1:
-                if st.button("< Back", use_container_width=True):
+                if st.button("←", help="Back to Dashboard", use_container_width=True):
                     st.session_state["current_page"] = "main"
                     st.rerun()
             with col2:
@@ -250,35 +242,13 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     # New pages for the sidebar structure
     elif current_page == "process_maps":
-        # Add back button
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            if st.button("< Back", use_container_width=True):
-                st.session_state["current_page"] = "main"
-                st.rerun()
-        with col2:
-            st.title("PM Process Maps")
-            
-        st.info("Preventive maintenance process maps and workflows.")
-        
-        st.markdown("""
-        ### Available Process Maps
-        
-        * Work Order Management Process
-        * Preventative Maintenance Workflow
-        * Emergency Response Procedure
-        * Service Request Handling
-        * Asset Inspection Checklist
-        * Contractor Management Process
-        """)
-        
-        st.warning("This section is under development. Process maps will be interactive in future updates.")
+        process_maps_page()
         
     elif current_page == "maintenance_records":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -330,9 +300,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "work_orders":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -373,9 +343,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
 
     elif current_page == "equipment_data":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -400,34 +370,19 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         
     elif current_page == "regulations":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
-            st.title("Regulations & Governance")
-            
-        st.info("Access regulations and governance documents.")
-        
-        regulations = [
-            "Preventive Maintenance Standard Operating Procedures",
-            "City of Calgary Facilities Management Guidelines", 
-            "Project Management Framework",
-            "Asset Management Policies"
-        ]
-        
-        selected_reg = st.selectbox("Select document to view:", regulations)
-        
-        st.markdown(f"## {selected_reg}")
-        st.write("This section will display the selected regulation document.")
-        st.warning("Document content functionality is under development.")
-        
+            st.title("Regulations & Bylaws Guidance")
+        show_guidance_section()
     elif current_page == "codes":
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("←", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
@@ -450,31 +405,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         st.warning("Document content functionality is under development.")
         
     elif current_page == "best_practices":
-        # Add back button
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            if st.button("< Back", use_container_width=True):
-                st.session_state["current_page"] = "main"
-                st.rerun()
-        with col2:
-            st.title("PM Best Practices")
-            
-        st.info("Access preventive maintenance best practice guides and standards.")
-        
-        practices = [
-            "Preventative Maintenance Guidelines",
-            "Emergency Response Procedures",
-            "Energy Management Best Practices",
-            "Sustainability Initiatives",
-            "Vendor Management Procedures"
-        ]
-        
-        selected_practice = st.selectbox("Select best practice to view:", practices)
-        
-        st.markdown(f"## {selected_practice}")
-        st.write("This section will display the selected best practice guide.")
-        st.warning("Document content functionality is under development.")
-        
+        from frontend.guidance_section import show_best_practices_section
+        show_best_practices_section()
+        # Add back button    
     elif current_page == "work_order_upload":
         # Check if user is admin before showing the page
         if user_email != "admin@calgary.ca":
@@ -485,9 +418,9 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                 st.rerun()
         else:
             # Add back button
-            col1, col2 = st.columns([1, 5])
+            col1, col2 = st.columns([1, 10])
             with col1:
-                if st.button("< Back", use_container_width=True):
+                if st.button("←", use_container_width=True):
                     st.session_state["current_page"] = "main"
                     st.rerun()
             with col2:
@@ -682,18 +615,36 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
         st.info("This section will display recent system activity and announcements.")
         
 else:
-    st.title("Welcome to Preventive Maintenance Support System")
-    st.markdown("""
-    ### Please log in to access the system
-    
-    This system provides:
-    * AI-powered chat assistance for preventive maintenance queries
-    * Work order and maintenance management
-    * Documentation and reference materials
-    * Data analysis and dashboards
-    
-    Use the login form in the sidebar to get started.
-    """)
-    
-    # Add a simple image or logo
-    st.image("https://via.placeholder.com/800x400?text=Preventive+Maintenance+Support+System", use_container_width=True)
+
+    # Main title and tagline
+    st.title("🤖 Preventive Maintenance Support System")
+    st.markdown(
+        "<h4 style='color:#2b8ae2;margin-top:-10px;'>Your AI-powered hub for maintenance, compliance, and analytics</h4>",
+        unsafe_allow_html=True
+    )
+
+    # Call to action
+    st.success("🔐 Please log in with your City of Calgary email to get started.")
+
+    # Feature highlights with icons
+    st.markdown("### 🚀 Key Features")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("🧑‍💻 **AI Chatbot**\n\nGet instant answers to PM questions and regulations.")
+        st.markdown("📊 **Dashboards**\n\nVisualize maintenance KPIs and trends.")
+    with col2:
+        st.markdown("📁 **Work Order Management**\n\nUpload, track, and analyze work orders.")
+        st.markdown("📚 **Guidance & Best Practices**\n\nAccess regulations, bylaws, and industry best practices.")
+
+    # Help or FAQ link
+    st.info("❓ Need help? Visit the [FAQs](#) or contact support@calgary.ca.")
+
+    # Optional: Announcements or news
+    st.markdown(
+        """
+        <div style='margin-top:24px;'>
+            <b>📢 Latest Update:</b> <span style='color:#2b8ae2;'>New dashboard features and best practices search now available!</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )

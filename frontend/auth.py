@@ -6,16 +6,30 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from backend.utils.supabase_client import supabase
 
 def auth_sidebar():
-    st.markdown('<div class="sidebar-title">🔐 Login</div>', unsafe_allow_html=True)
-
+    # Only show login/signup if not logged in
     if "user" not in st.session_state or st.session_state.user is None:
-        tab = st.radio("Select Action", ["Login", "Sign Up"], index=0)
+        tab = st.radio("-----------------------------", ["Login", "Sign Up"], index=0)
+
+        header_text = "🔐 Login" if tab == "Login" else "📝 Sign Up"
+        sub_text = (
+            "Welcome! Please log in with your City of Calgary email to access the system."
+            if tab == "Login"
+            else "Create your account with your City of Calgary email."
+        )
+
+        st.markdown(
+            f"""
+            <div style='font-size:1.5em; color:#2b8ae2; font-weight:bold; margin-bottom:0.5em;'>{header_text}</div>
+            <div style='color:#444; margin-bottom:1em;'>{sub_text}</div>
+            """,
+            unsafe_allow_html=True
+        )
 
         if tab == "Login":
-            email = st.text_input("Email", placeholder="you@calgary.ca")
-            password = st.text_input("Password", type="password")
+            email = st.text_input("📧 Email", placeholder="you@calgary.ca")
+            password = st.text_input("🔑 Password", type="password")
 
-            if st.button("Login"):
+            if st.button("Login", use_container_width=True):
                 if not email.endswith("@calgary.ca"):
                     st.warning("Only @calgary.ca emails are allowed.")
                 elif not email or not password:
@@ -38,7 +52,7 @@ def auth_sidebar():
                             if profile.data:
                                 st.session_state.name = profile.data[0]["name"]
                             else:
-
+                                name = st.text_input("Full Name", key="prompt_name")
                                 if name:
                                     st.session_state.name = name
                                     supabase.table("user_profiles").insert({
@@ -57,11 +71,11 @@ def auth_sidebar():
                         st.error(f"Login failed: {e}")
 
         else:  # Sign Up
-            email = st.text_input("Email", key="signup_email")
-            password = st.text_input("Password", type="password", key="signup_password")
-            name = st.text_input("Full Name", key="signup_name")  # <-- Add name field
+            email = st.text_input("📧 Email", key="signup_email")
+            password = st.text_input("🔑 Password", type="password", key="signup_password")
+            name = st.text_input("📝 Full Name", key="signup_name")
 
-            if st.button("Sign Up"):
+            if st.button("Sign Up", use_container_width=True):
                 if not email or not password or not name:
                     st.error("Please fill in all fields.")
                 elif not email.endswith("@calgary.ca"):
@@ -97,13 +111,14 @@ def auth_sidebar():
                         st.error(f"Signup failed: {e}")
 
     else:
-        email = st.session_state.user.email if st.session_state.user else "Unknown"
-        name = st.session_state.get("name", email)
-        st.markdown(f"**Logged in as:** {name}")
-       
-
-
-        if st.button("Logout"):
+        name = st.session_state.get("name", st.session_state.user.email if st.session_state.user else "Unknown")
+        st.markdown(
+            f"""
+            <div style='font-size:1.2em; color:#2b8ae2; font-weight:bold; margin-bottom:0.5em;'>👋 Welcome, {name}!</div>
+            """,
+            unsafe_allow_html=True
+        )
+        if st.button("Logout", use_container_width=True):
             try:
                 supabase.auth.sign_out()
             except Exception as e:
@@ -113,6 +128,3 @@ def auth_sidebar():
                 st.session_state.pop(key, None)
 
             st.rerun()
-
-
-            

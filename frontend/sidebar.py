@@ -4,12 +4,20 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from backend.utils.db import get_all_sessions, delete_session, create_new_session, load_messages_by_session, rename_session
 
+# Import the guidance section
+from frontend.guidance_section import show_guidance_section, show_best_practices_section
+
 def full_sidebar():
     st.markdown("# Preventive Maintenance")
     
     # Check if user is admin
     user_email = st.session_state.get("email", "").lower()
     is_admin = (user_email == "admin@calgary.ca")
+    
+    # --- Move Chat with AI to the top ---
+    if st.button("💬 Chat with AI", key="chat_btn_top", use_container_width=True):
+        st.session_state["current_page"] = "chat"
+        st.rerun()
     
     # Documentation - expandable section with direct buttons
     with st.expander("📚 Documentation", expanded=False):
@@ -19,14 +27,6 @@ def full_sidebar():
             
         if st.button("FAQs", key="faqs_btn", use_container_width=True):
             st.session_state["current_page"] = "faqs"
-            st.rerun()
-            
-        if st.button("Forms & Docs", key="forms_btn", use_container_width=True):
-            st.session_state["current_page"] = "forms"
-            st.rerun()
-            
-        if st.button("Maintenance Records", key="maint_rec_btn", use_container_width=True):
-            st.session_state["current_page"] = "maintenance_records"
             st.rerun()
     
     # Operational Data - expandable section with direct buttons and sub-options where needed
@@ -72,34 +72,19 @@ def full_sidebar():
                 if st.button("Upload PM Data", key="upload_pm_btn", use_container_width=True):
                     st.session_state["current_page"] = "pm_data_upload"
                     st.rerun()
-        
-        # Equipment data is direct
-        if st.button("Equipment Data", key="equip_btn", use_container_width=True):
-            st.session_state["current_page"] = "equipment_data"
-            st.rerun()
-        
-
     
     # Guidance - expandable section with direct buttons
     with st.expander("📘 Guidance", expanded=False):
-        if st.button("Regulations", key="reg_btn", use_container_width=True):
+        if st.button("Regulations & Bylaws", key="reg_btn", use_container_width=True):
             st.session_state["current_page"] = "regulations"
-            st.rerun()
-            
-        if st.button("Codes & Bylaws", key="codes_btn", use_container_width=True):
-            st.session_state["current_page"] = "codes"
             st.rerun()
             
         if st.button("Best Practices", key="practices_btn", use_container_width=True):
             st.session_state["current_page"] = "best_practices"
             st.rerun()
     
-    # ADHOC - expandable section with direct buttons
+    # ADHOC - expandable section with direct buttons (Chat with AI removed)
     with st.expander("⚙️ ADHOC", expanded=False):
-        if st.button("Chat with AI", key="chat_btn", use_container_width=True):
-            st.session_state["current_page"] = "chat"
-            st.rerun()
-            
         if st.button("User Feedback", key="feedback_btn", use_container_width=True):
             st.session_state["current_page"] = "user_feedback"
             st.rerun()
@@ -118,15 +103,14 @@ def full_sidebar():
             st.session_state["current_page"] = "main"
             st.rerun()
 
+
+
 def chat_sessions_sidebar():
     if not st.session_state.get("user_id"):
         st.warning("🔐 Please log in to see your chat sessions.")
         return
 
     # Add a button to return to navigation sidebar
-    if st.button("< Back to Navigation", use_container_width=True):
-        st.session_state["current_page"] = "main"
-        st.rerun()
     
     st.markdown("---")  # Add a separator
     
@@ -181,3 +165,10 @@ def chat_sessions_sidebar():
         st.session_state.selected_session = new_id
         st.session_state.messages = []
         st.rerun()
+
+# --- Show Guidance Section in Main Area if selected ---
+if st.session_state.get("current_page") == "regulations":
+    show_guidance_section()
+    
+if st.session_state.get("current_page") == "best_practices":
+    show_best_practices_section()

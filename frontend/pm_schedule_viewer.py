@@ -7,6 +7,8 @@ from plotly.subplots import make_subplots
 from io import BytesIO
 import json
 
+from backend.utils.pm_wo_retrieval import get_distinct_organizations
+
 def organize_pm_data_in_tabs(metrics):
     tabs = st.tabs(["📊 Dashboard", "📅 Future PMs", "🔍 Data Explorer"])
     dashboard_tab = tabs[0]
@@ -163,13 +165,13 @@ def get_status_color(status):
         "due today": "#FF9800",
         "past_due": "#F44336",
         "due_today": "#FF9800",
-        "upcoming": "#2196F3"
+        "upcoming": "#01070C"
     }
     if status:
         status_lower = status.lower()
         if status_lower in status_colors:
             return status_colors[status_lower]
-    return "#2196F3"
+    return "#01070C"
 
 def display_pm_by_building(metrics):
     if "ai_insights" not in metrics or "scheduling_recommendations" not in metrics["ai_insights"]:
@@ -430,18 +432,24 @@ def display_pm_data_explorer(metrics):
             if col in pm_df.columns:
                 pm_df[col] = pd.to_datetime(pm_df[col])
         st.markdown("### Filter PM Data")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         statuses = ["All"] + sorted(pm_df["status"].unique().tolist()) if "status" in pm_df.columns else ["All"]
         buildings = ["All"] + sorted(pm_df["building_name"].unique().tolist()) if "building_name" in pm_df.columns else ["All"]
+        organizations = ["All", "FM", "PK", "FI", "RC", "CP"]
         with col1:
             filter_status = st.selectbox("Status:", statuses)
         with col2:
             filter_building = st.selectbox("Building:", buildings)
+        with col3:  # Add a new column for the organization filter
+            filter_organization = st.selectbox("Organization:", organizations)
+
         filtered_df = pm_df.copy()
         if filter_status != "All" and "status" in filtered_df.columns:
             filtered_df = filtered_df[filtered_df["status"] == filter_status]
         if filter_building != "All" and "building_name" in filtered_df.columns:
             filtered_df = filtered_df[filtered_df["building_name"] == filter_building]
+        if filter_organization != "All" and "organization" in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df["organization"] == filter_organization]
         col1, col2 = st.columns(2)
         with col1:
             min_date = pm_df["scheduled_start_date"].min() if "scheduled_start_date" in pm_df.columns else datetime.now() - timedelta(days=30)
@@ -640,6 +648,8 @@ def display_pm_calendar_view(metrics, calendar_data=None):
     if st.button("🔄 Refresh Calendar"):
         st.rerun()
     st.subheader("📆 PM Calendar View")
+
+    # Prepare calendar_data if not provided
     if not calendar_data:
         calendar_data = {
             "events": [],
@@ -658,10 +668,28 @@ def display_pm_calendar_view(metrics, calendar_data=None):
             if sched_recs and "all" in sched_recs and sched_recs["all"]:
                 today = datetime.now()
                 for rec in sched_recs["all"]:
+                    # --- Apply filters ---
+                    org = rec.get("organization", "")
+                    if organization != "All" and org != organization:
+                        continue
+                    rec_building = rec.get("building_name", "") or rec.get("building", "")
+                    if building and building.lower() not in str(rec_building).lower():
+                        continue
+                    rec_status = rec.get("status", "")
+                    if status != "All" and rec_status != status:
+                        continue
+                    rec_zone = rec.get("zone", "")
+                    if zone != "All Zones" and rec_zone != zone:
+                        continue
+                    rec_region = rec.get("region", "")
+                    if region != "All Regions" and rec_region != region:
+                        continue
                     date_created = rec.get("date_created")
                     if not date_created:
                         continue
                     date_created_obj = pd.to_datetime(date_created)
+                    if date_created_obj.date() < start_date or date_created_obj.date() > end_date:
+                        continue
                     days_from_today = (date_created_obj - today).days
                     is_past_due = days_from_today < 0
                     is_today = days_from_today == 0
@@ -691,8 +719,11 @@ def display_pm_calendar_view(metrics, calendar_data=None):
                             "status": detailed_status,
                             "building": rec.get("building_name", ""),
                             "equipment": equipment_display,
-                            "work_order": rec.get("work_order", "") if rec.get("work_order") else "",
+                            "work_order": rec.get("work_order_id", "") if rec.get("work_order_id") else "",
                             "description": desc,
+                            "organization": org,
+                            "zone": rec_zone,
+                            "region": rec_region,
                             "days_from_today": days_from_today,
                             "is_past_due": is_past_due,
                             "is_today": is_today,
@@ -712,10 +743,9 @@ def display_pm_calendar_view(metrics, calendar_data=None):
                     "future": sum(1 for e in calendar_data["events"] if e["extendedProps"]["is_future"]),
                     "completed": sum(1 for e in calendar_data["events"] if e["extendedProps"]["is_completed"])
                 }
-    stats = calendar_data.get("stats", {})
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total PMs", stats.get("total", 0))
+        st.metric("Total PMs", calendar_data["stats"].get("total", 0))
     st.markdown("### Status Color Legend")
     status_colors = {
         "Assigned": get_status_color("assigned"),
@@ -725,7 +755,8 @@ def display_pm_calendar_view(metrics, calendar_data=None):
         "Waiting on Invoice": get_status_color("waiting on invoice"),
         "Work Complete": get_status_color("work complete"),
         "No Resources": get_status_color("no resources"),
-        "PM Follow-up": get_status_color("pm follow-up")
+        "PM Follow-up": get_status_color("pm follow-up"),
+        "Upcoming": get_status_color("upcoming"),
     }
     legend_cols = st.columns(len(status_colors))
     for i, (status, color) in enumerate(status_colors.items()):
@@ -769,6 +800,22 @@ def display_pm_calendar_view(metrics, calendar_data=None):
         safe_events.append(safe_event)
     events_json = json.dumps(safe_events, default=json_serializer)
     default_view = "dayGridMonth"
+    # Try to get the user's selected start date from Streamlit session state
+    initial_date = None
+    try:
+        if "future_filter_values" in st.session_state:
+            initial_date = st.session_state["future_filter_values"].get("start_date")
+        elif "dashboard_filter_values" in st.session_state:
+            initial_date = st.session_state["dashboard_filter_values"].get("start_date")
+        if initial_date:
+            # Ensure it's in YYYY-MM-DD format
+            from datetime import datetime
+            initial_date = str(initial_date)
+            # If it's a datetime/date object, convert to string
+            if not isinstance(initial_date, str):
+                initial_date = initial_date.strftime('%Y-%m-%d')
+    except Exception:
+        initial_date = None
     calendar_html = f"""
         <!DOCTYPE html>
         <html data-version="{cache_buster}">
@@ -848,6 +895,7 @@ def display_pm_calendar_view(metrics, calendar_data=None):
             var tooltipInstance = null;
             var calendar = new FullCalendar.Calendar(calendarEl, {{
                 initialView: '{default_view}',
+                {f"initialDate: '{initial_date}'," if initial_date else ""}
                 headerToolbar: {{
                     left: 'prev,next today',
                     center: 'title',
@@ -953,13 +1001,12 @@ def display_pm_calendar_view(metrics, calendar_data=None):
                     "Date": e["start"],
                     "Status": e["extendedProps"].get("status", ""),
                     "Building": e["extendedProps"].get("building", ""),
-                    "Work Order": e["extendedProps"].get("work_order", ""),
-                    "Days From Now": e["extendedProps"].get("days_from_today", "")
+                    "Work Order": e["extendedProps"].get("work_order", "")
                 } for e in events
             ])
             col1, col2 = st.columns(2)
             with col1:
-                sort_by = st.selectbox("Sort by:", ["Date", "Building", "Status", "Days From Now"])
+                sort_by = st.selectbox("Sort by:", ["Date", "Building", "Status"])
             with col2:
                 ascending = st.checkbox("Ascending", value=True)
             events_df = events_df.sort_values(sort_by, ascending=ascending)

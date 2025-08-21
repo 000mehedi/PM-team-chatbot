@@ -351,7 +351,7 @@ def get_latest_dashboard():
         print(f"Error getting latest dashboard: {str(e)}")
         return None
 
-def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, building_name=None, trade=None, zone=None):
+def generate_custom_dashboard(start_date=None,  description_keyword=None,  end_date=None, building_id=None, building_name=None, trade=None, zone=None):
     """
     Generates a custom dashboard with specific filters
     """
@@ -381,6 +381,8 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
         
     if zone:
         filter_description += f" | Zone: {zone}"
+
+
     
     print(f"Filters: {filter_description}")
     
@@ -441,6 +443,10 @@ def generate_custom_dashboard(start_date=None, end_date=None, building_id=None, 
             
         if zone:
             query = query.eq("zone", zone)
+
+        if description_keyword:  # <-- add here
+            query = query.ilike("description", f"%{description_keyword}%")
+
         
         # Apply pagination
         result = query.range(offset, offset + batch_size - 1).execute()
