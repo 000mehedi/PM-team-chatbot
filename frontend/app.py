@@ -636,15 +636,6 @@ else:
         st.markdown("📁 **Work Order Management**\n\nUpload, track, and analyze work orders.")
         st.markdown("📚 **Guidance & Best Practices**\n\nAccess regulations, bylaws, and industry best practices.")
 
-    # Help or FAQ link
-    st.info("❓ Need help? Visit the [FAQs](#) or contact support@calgary.ca.")
 
-    # Optional: Announcements or news
-    st.markdown(
-        """
-        <div style='margin-top:24px;'>
-            <b>📢 Latest Update:</b> <span style='color:#2b8ae2;'>New dashboard features and best practices search now available!</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+
+ 
