@@ -631,7 +631,7 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("🧑‍💻 **AI Chatbot**\n\nGet instant answers to PM questions and regulations.")
-        st.markdown("📊 **Dashboards**\n\nVisualize maintenance KPIs and trends.")
+        st.markdown("📊 **Dashboards**\n\nVisualize Work Order trends.")
     with col2:
         st.markdown("📁 **Work Order Management**\n\nUpload, track, and analyze work orders.")
         st.markdown("📚 **Guidance & Best Practices**\n\nAccess regulations, bylaws, and industry best practices.")
