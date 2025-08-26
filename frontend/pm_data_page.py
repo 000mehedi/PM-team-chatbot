@@ -43,9 +43,9 @@ def show_pm_data_page():
     Display the PM Data page with Dashboard and Data Explorer tabs
     """
     # Add back button
-    col1, col2 = st.columns([1, 5])
+    col1, col2 = st.columns([1, 10])
     with col1:
-        if st.button("< Back", use_container_width=True):
+        if st.button("< ", use_container_width=True):
             st.session_state["current_page"] = "main"
             st.rerun()
     with col2:
@@ -592,9 +592,9 @@ def show_pm_data_upload():
             st.rerun()
     else:
         # Add back button
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([1, 10])
         with col1:
-            if st.button("< Back", use_container_width=True):
+            if st.button("< ", use_container_width=True):
                 st.session_state["current_page"] = "main"
                 st.rerun()
         with col2:
