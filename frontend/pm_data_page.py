@@ -298,7 +298,7 @@ def display_future_pms_tab():
     # PMs by Building Bar Chart
     # The following block should only run if future_metrics is defined, but future_metrics is only available after data is loaded below.
     # So, this block should be moved or guarded appropriately if needed.
-    st.subheader("Future PM Schedule")
+ 
 
 
 

@@ -89,14 +89,6 @@ def full_sidebar():
             st.session_state["current_page"] = "user_feedback"
             st.rerun()
             
-        if st.button("Session Analytics", key="analytics_btn", use_container_width=True):
-            st.session_state["current_page"] = "analytics"
-            st.rerun()
-            
-        if st.button("Manual Lookup", key="manual_btn", use_container_width=True):
-            st.session_state["current_page"] = "manual_lookup"
-            st.rerun()
-    
     # Add a direct link to the main page if needed
     if st.session_state["current_page"] != "main":
         if st.button("Main Dashboard", use_container_width=True):
