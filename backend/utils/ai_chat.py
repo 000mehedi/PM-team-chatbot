@@ -1,4 +1,3 @@
-
 import openai
 import os
 import re
@@ -7,19 +6,13 @@ import base64
 from datetime import datetime, timedelta
 from backend.utils.supabase_client import supabase
 from frontend.guidance_section import get_guidance_results, get_best_practices_results
-from backend.utils.db import load_faqs
-from backend.utils.faq_semantics import get_faq_match
-from frontend.chat import load_dictionary_corpus, retrieve_relevant_dictionary
+
 from .dashboard_generator import (
     generate_daily_dashboard,
     get_latest_dashboard,
     generate_custom_dashboard
 )
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# Load FAQs and dictionary corpus once at module level
-faqs_df = load_faqs()
-dictionary_corpus = load_dictionary_corpus()
 
 def get_latest_model_name():
     try:
@@ -215,20 +208,7 @@ BEST_PRACTICE_KEYWORDS = ["best practice", "oem manual", "manual", "procedure", 
 
 def ask_gpt(question, context=""):
     question_lower = question.lower()
-
-    # FAQ direct match (highest priority)
-    if faqs_df is not None and not faqs_df.empty:
-        faq_answer = get_faq_match(question, faqs_df)
-        if faq_answer:
-            return faq_answer
-
-    # Dictionary direct match (next priority)
-    if dictionary_corpus is not None and len(dictionary_corpus) > 0:
-        relevant_dictionary_context = retrieve_relevant_dictionary(question, dictionary_corpus, top_k=3)
-        if relevant_dictionary_context:
-            return f"**Relevant Data Dictionary Entries:**\n\n{relevant_dictionary_context}"
-
-    # Guidance/Regulation queries
+        # Guidance/Regulation queries
     if any(kw in question_lower for kw in GUIDANCE_KEYWORDS):
         results = get_guidance_results(question_lower, limit=3)
         if results:
@@ -248,6 +228,7 @@ def ask_gpt(question, context=""):
             response += "\nFor more, visit the Best Practices section."
             return response
 
+    
     # PROCESS MAPS QUERIES - Moved to top priority and enhanced
     if any(phrase in question_lower for phrase in [
         "process map", "workflow", "procedure", "flow chart", "diagram",
