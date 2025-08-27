@@ -77,6 +77,8 @@ def login(data: OAuth2PasswordRequestForm = Depends()):
     user = get_user_by_username(data.username)
     if not user or not pwd_context.verify(data.password, user["password"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if user.get("status") != "approved":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account is not approved yet. Please contact an administrator.")
 
     access_token = manager.create_access_token(data={"sub": data.username})
     return {
