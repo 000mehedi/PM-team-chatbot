@@ -584,7 +584,10 @@ def show_pm_data_upload():
     user_email = st.session_state.get("email", "").lower()
     
     # Check if user is admin before showing the page
-    if user_email != "admin@calgary.ca":
+
+    ADMIN_EMAILS = ["admin@calgary.ca", "joanne.yuen@calgary.ca", "ningyu.huang@calgary.ca"]
+ 
+    if user_email not in ADMIN_EMAILS:
         st.error("⛔ Access Denied: You don't have permission to access this page.")
         st.info("This feature is only available to administrators.")
         if st.button("← Return to Dashboard"):

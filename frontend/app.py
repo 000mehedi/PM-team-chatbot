@@ -583,6 +583,10 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                     st.error(f"❌ Error reading file: {str(e)}")
                     st.write("Please make sure the file is in the correct format.")
         
+    elif current_page == "admin_user_approval":
+        from admin_user_approval import show_admin_user_approval
+        show_admin_user_approval()
+        
     else:
         # Default main page
         st.title("🤖 Preventive Maintenance Support System")
@@ -635,4 +639,3 @@ else:
 
 
 
- 

@@ -13,7 +13,7 @@ def full_sidebar():
     # Check if user is admin
     user_email = st.session_state.get("email", "").lower()
     is_admin = (user_email == "admin@calgary.ca")
-    
+
     # --- Move Chat with AI to the top ---
     if st.button("💬 Chat with AI", key="chat_btn_top", use_container_width=True):
         st.session_state["current_page"] = "chat"
@@ -88,8 +88,17 @@ def full_sidebar():
         if st.button("User Feedback", key="feedback_btn", use_container_width=True):
             st.session_state["current_page"] = "user_feedback"
             st.rerun()
-            
 
+
+    st.markdown("---")  # Add a separator
+            
+    
+    # Admin: User Approvals
+    if is_admin:
+        if st.button("👤 User Approvals", key="user_approvals_btn", use_container_width=True):
+            st.session_state["current_page"] = "admin_user_approval"
+            st.rerun()
+    
     
     # Add a direct link to the main page if needed
     if st.session_state["current_page"] != "main":

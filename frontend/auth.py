@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.utils.supabase_client import supabase
+from backend.utils.user_status import add_user_status, get_user_status
 
 def auth_sidebar():
     # Only show login/signup if not logged in
@@ -40,7 +41,27 @@ def auth_sidebar():
                         user = res.user
                         if user is None:
                             st.error("Login failed: Check your credentials or confirm your email.")
+
                         else:
+                            # Always allow admin to log in
+                            if user.email.lower() == "admin@calgary.ca":
+                                pass
+                            else:
+                                # Check user_status table for approval
+                                status = get_user_status(user.id)
+                                if status is None:
+                                    st.error("Your account is not registered for approval. Please contact admin.")
+                                    return
+                                elif status == "pending":
+                                    st.warning("Your account is pending admin approval. Please wait for approval.")
+                                    return
+                                elif status == "blocked":
+                                    st.error("Your account has been blocked. Contact admin for details.")
+                                    return
+                                elif status != "approved":
+                                    st.error(f"Your account status is '{status}'. Access denied.")
+                                    return
+
                             st.session_state.user = user
                             st.session_state.token = res.session.access_token
                             st.session_state.user_id = user.id
@@ -91,6 +112,8 @@ def auth_sidebar():
                                 "email": email,
                                 "name": name
                             }).execute()
+                            # Add user to user_status as pending, with email
+                            add_user_status(user.id, email, "pending")
                             st.success("Account Created.")
 
                             # --- Auto login after signup ---
@@ -98,6 +121,11 @@ def auth_sidebar():
                                 login_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                                 login_user = login_res.user
                                 if login_user:
+                                    # Check user_status before logging in
+                                    status = get_user_status(login_user.id)
+                                    if status != "approved":
+                                        st.warning("Your account is not approved yet. Please wait for admin approval.")
+                                        return
                                     st.session_state.user = login_user
                                     st.session_state.token = login_res.session.access_token
                                     st.session_state.user_id = login_user.id

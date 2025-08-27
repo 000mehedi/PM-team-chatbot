@@ -1,3 +1,13 @@
+# ======================= Admin User Management =======================
+def get_pending_users():
+    res = supabase.table("users").select("*").eq("status", "pending").execute()
+    return res.data or []
+
+def approve_user(username: str):
+    supabase.table("users").update({"status": "approved"}).eq("username", username).execute()
+
+def block_user(username: str):
+    supabase.table("users").update({"status": "blocked"}).eq("username", username).execute()
 from datetime import datetime
 import pandas as pd
 from io import BytesIO
@@ -12,7 +22,8 @@ def add_user(username: str, password: str, name: str) -> None:
     supabase.table("users").insert({
         "username": username,
         "password": password,
-        "name": name
+        "name": name,
+        "status": "pending"  # New users are pending by default
     }).execute()
 
 def get_pm_tasks(pm_code: str):
