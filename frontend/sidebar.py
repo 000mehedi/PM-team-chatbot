@@ -8,11 +8,13 @@ from backend.utils.db import get_all_sessions, delete_session, create_new_sessio
 from frontend.guidance_section import show_guidance_section, show_best_practices_section
 
 def full_sidebar():
-    st.markdown("# Preventive Maintenance")
+    st.markdown("# Preventative Maintenance")
     
     # Check if user is admin
     user_email = st.session_state.get("email", "").lower()
-    is_admin = (user_email == "admin@calgary.ca")
+    admin_emails = ["admin@calgary.ca", "joanne.yuen@calgary.ca", "ningyu.huang@calgary.ca"]
+
+    is_admin = user_email in admin_emails
 
     # --- Move Chat with AI to the top ---
     if st.button("💬 Chat with AI", key="chat_btn_top", use_container_width=True):
