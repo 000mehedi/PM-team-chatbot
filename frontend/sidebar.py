@@ -12,7 +12,7 @@ def full_sidebar():
     
     # Check if user is admin
     user_email = st.session_state.get("email", "").lower()
-    admin_emails = ["admin@calgary.ca", "joanne.yuen@calgary.ca", "ningyu.huang@calgary.ca"]
+    admin_emails = ["admin@calgary.ca", "joanne.yuen@calgary.ca", "nhuang@calgary.ca"]
 
     is_admin = user_email in admin_emails
 
