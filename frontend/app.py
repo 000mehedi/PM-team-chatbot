@@ -610,10 +610,7 @@ if st.session_state.get("token") and st.session_state.get("user_id"):
                 st.session_state["current_page"] = "user_feedback"
                 st.rerun()
         
-        # Show recent activity or announcements
-        st.markdown("### Recent Activity")
-        st.info("This section will display recent system activity and announcements.")
-        
+      
 else:
 
     # Main title and tagline
